@@ -1,0 +1,33 @@
+{
+  "originHash" : "ead0c74bd26be79ee44b198c43c49e2b90b98bc92df74e3b910b7b0200f981b6",
+  "pins" : [
+    {
+      "identity" : "flyingfox",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swhitty/FlyingFox.git",
+      "state" : {
+        "revision" : "3ad076e081749cef043e25ac01719a503b772113",
+        "version" : "0.22.0"
+      }
+    },
+    {
+      "identity" : "flyingfoxmacros",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swhitty/FlyingFoxMacros.git",
+      "state" : {
+        "revision" : "39cee2ebbff08cdfdcfbfd27f0847eea7ca25566",
+        "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax",
+      "state" : {
+        "revision" : "0687f71944021d616d34d922343dcef086855920",
+        "version" : "600.0.1"
+      }
+    }
+  ],
+  "version" : 3
+}
