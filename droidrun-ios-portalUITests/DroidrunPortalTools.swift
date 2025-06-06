@@ -16,8 +16,8 @@ extension XCUIDevice.Button {
     init?(rawValue: Int) {
         switch rawValue {
         case 0: self = .home
-        //case 1: self = .volumeUp
-        //case 2: self = .volumeDown
+            //case 1: self = .volumeUp
+            //case 2: self = .volumeDown
         case 4: self = .action
         case 5: self = .camera
         default: return nil
@@ -25,7 +25,7 @@ extension XCUIDevice.Button {
     }
 }
 
-extension DroidrunPortal {
+extension DroidrunPortalTools {
     enum Error: Swift.Error, LocalizedError {
         case invalidTool(name: String?, message: String)
         case noAppFound
@@ -44,18 +44,65 @@ extension DroidrunPortal {
     }
 }
 
+struct PhoneState: Codable {
+    let activity: String
+    let keyboardShown: Bool
+}
+
 // tools
-extension DroidrunPortal {
+final class DroidrunPortalTools: XCTestCase {
+    var app: XCUIApplication?
+    var bundleIdentifier: String?
+    
+    static let shared = DroidrunPortalTools()
+    
+    override func setUp() {
+        print("setUp DroidrunPortalTools")
+        if self.app == nil {
+            self.app = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+            self.app?.activate()
+        }
+    }
+    
+    @MainActor
+    func fetchPhoneState() throws -> PhoneState {
+        guard let app else {
+            return PhoneState(activity: "most likely apple springboard", keyboardShown: false)
+        }
+        
+        var activity = self.bundleIdentifier ?? "unknown"
+        let navBar = app.navigationBars.firstMatch
+        if navBar.exists,
+           !navBar.identifier.isEmpty {
+            activity += " - \(navBar.identifier)"
+        }
+        let label = app.staticTexts.firstMatch
+        if label.exists, !label.label.isEmpty {
+            activity += " - \(label.label)"
+        }
+        
+        let keyboardShown = app.keyboards.element.exists && app.keyboards.element.isHittable
+        
+        return PhoneState(activity: activity, keyboardShown: keyboardShown)
+    }
+    
     @MainActor
     func openApp(bundleIdentifier: String) throws {
+        if bundleIdentifier == self.bundleIdentifier, app != nil {
+            app?.activate()
+            return
+        }
+        
+        
         let app = XCUIApplication(bundleIdentifier: bundleIdentifier)
-
+        
         if bundleIdentifier == "com.apple.springboard" {
             app.activate() // Avoid relaunching springboard since that locks the phone
         } else {
             app.launch()
         }
         
+        self.bundleIdentifier = bundleIdentifier
         self.app = app
     }
     
@@ -168,9 +215,9 @@ extension DroidrunPortal {
         let snapshot = XCUIScreen.main.screenshot()
         
         /*guard let app else {
-            throw Error.noAppFound
-        }
-        let snapshot = app.screenshot()*/
+         throw Error.noAppFound
+         }
+         let snapshot = app.screenshot()*/
         
         return snapshot.pngRepresentation
     }

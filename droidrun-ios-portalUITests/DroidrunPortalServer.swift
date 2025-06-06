@@ -8,13 +8,11 @@
 import XCTest
 import FlyingFox
 
-final class DroidrunPortal: XCTestCase {
+final class DroidrunPortalServer: XCTestCase {
     var app: XCUIApplication?
     var server: HTTPServer!
     
     private let port: in_port_t = 6643
-    
-    static let shared = DroidrunPortal()
     
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
@@ -27,30 +25,27 @@ final class DroidrunPortal: XCTestCase {
         server = HTTPServer(port: self.port, handler: DroidrunPortalHandler())
         
         // UI tests must launch the application that they test.
-        let app = XCUIApplication()
-        app.launch()
+        // let app = XCUIApplication()
+        // app.launch()
+        
+        Task {
+            try? await server.run()
+        }
+        
+        RunLoop.main.run()
     }
     
     override func tearDownWithError() throws {
+        let expectation = XCTestExpectation(description: "Stop server")
         // Put teardown code here. This method is called after the invocation of each test method in the class.
-        // server?.stop()
+        Task {
+            await server?.stop()
+            expectation.fulfill()
+        }
+        
+        wait(for: [expectation], timeout: 2)
     }
     
     @MainActor
-    func testLoop() async throws {
-        try await server.run()
-        
-        /*let listeningAddress = await server.listeningAddress
-        print("🚀 HTTP Server running on \(listeningAddress.debugDescription)")
-        print("⏹️  Press Stop in Xcode to terminate")*/
-        
-        // Keep the run loop alive
-        /*let runLoop = RunLoop.current
-        while runLoop.run(mode: .default, before: Date.distantFuture) {
-            // This will run until the test is manually stopped
-        }*/
-        
-        /*await server.stop(timeout: 3)
-        print("HTTP Server closed")*/
-    }
+    func testLoop() async throws {}
 }

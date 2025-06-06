@@ -27,7 +27,7 @@
 
 /* Begin PBXFileReference section */
 		257BF6C72DEF0D2800E06EE1 /* Droidrun Portal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Droidrun Portal.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		257BF6DE2DEF0D2A00E06EE1 /* Droidrun Portal Server.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Droidrun Portal Server.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		257BF6DE2DEF0D2A00E06EE1 /* Droidrun.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Droidrun.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -81,7 +81,7 @@
 			isa = PBXGroup;
 			children = (
 				257BF6C72DEF0D2800E06EE1 /* Droidrun Portal.app */,
-				257BF6DE2DEF0D2A00E06EE1 /* Droidrun Portal Server.xctest */,
+				257BF6DE2DEF0D2A00E06EE1 /* Droidrun.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -121,9 +121,9 @@
 			productReference = 257BF6C72DEF0D2800E06EE1 /* Droidrun Portal.app */;
 			productType = "com.apple.product-type.application";
 		};
-		257BF6DD2DEF0D2A00E06EE1 /* Droidrun Portal Server */ = {
+		257BF6DD2DEF0D2A00E06EE1 /* Droidrun Server */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 257BF6EE2DEF0D2A00E06EE1 /* Build configuration list for PBXNativeTarget "Droidrun Portal Server" */;
+			buildConfigurationList = 257BF6EE2DEF0D2A00E06EE1 /* Build configuration list for PBXNativeTarget "Droidrun Server" */;
 			buildPhases = (
 				257BF6DA2DEF0D2A00E06EE1 /* Sources */,
 				257BF6DB2DEF0D2A00E06EE1 /* Frameworks */,
@@ -137,14 +137,14 @@
 			fileSystemSynchronizedGroups = (
 				257BF6E12DEF0D2A00E06EE1 /* droidrun-ios-portalUITests */,
 			);
-			name = "Droidrun Portal Server";
+			name = "Droidrun Server";
 			packageProductDependencies = (
 				257BF7172DF0522500E06EE1 /* FlyingFox */,
 				257BF7192DF0522500E06EE1 /* FlyingSocks */,
 				257BF71F2DF0573600E06EE1 /* FlyingFoxMacros */,
 			);
 			productName = "droidrun-ios-portalUITests";
-			productReference = 257BF6DE2DEF0D2A00E06EE1 /* Droidrun Portal Server.xctest */;
+			productReference = 257BF6DE2DEF0D2A00E06EE1 /* Droidrun.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -185,7 +185,7 @@
 			projectRoot = "";
 			targets = (
 				257BF6C62DEF0D2800E06EE1 /* Droidrun Portal */,
-				257BF6DD2DEF0D2A00E06EE1 /* Droidrun Portal Server */,
+				257BF6DD2DEF0D2A00E06EE1 /* Droidrun Server */,
 			);
 		};
 /* End PBXProject section */
@@ -413,14 +413,16 @@
 		257BF6EF2DEF0D2A00E06EE1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5KTKV6FRNZ;
 				GCC_PREPROCESSOR_DEFINITIONS = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/droidrun-ios-portalUITests/Droidrun-Server.plist";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "ai.droidrun.droidrun-ios-portalUITests";
-				PRODUCT_NAME = "Droidrun Portal Server";
+				PRODUCT_NAME = Droidrun;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -431,14 +433,16 @@
 		257BF6F02DEF0D2A00E06EE1 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 5KTKV6FRNZ;
 				GCC_PREPROCESSOR_DEFINITIONS = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/droidrun-ios-portalUITests/Droidrun-Server.plist";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "ai.droidrun.droidrun-ios-portalUITests";
-				PRODUCT_NAME = "Droidrun Portal Server";
+				PRODUCT_NAME = Droidrun;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -467,7 +471,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		257BF6EE2DEF0D2A00E06EE1 /* Build configuration list for PBXNativeTarget "Droidrun Portal Server" */ = {
+		257BF6EE2DEF0D2A00E06EE1 /* Build configuration list for PBXNativeTarget "Droidrun Server" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				257BF6EF2DEF0D2A00E06EE1 /* Debug */,

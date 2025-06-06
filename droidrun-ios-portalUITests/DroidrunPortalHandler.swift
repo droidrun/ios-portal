@@ -60,39 +60,44 @@ struct DroidrunPortalHandler {
         return InfoResponse(description: description)
     }
     
+    @JSONRoute("GET /vision/state")
+    func fetchPhoneState() async throws -> PhoneState {
+        return try await DroidrunPortalTools.shared.fetchPhoneState()
+    }
+    
     @JSONRoute("GET /vision/a11y")
     func fetchAccessibilityTree() async throws -> A11yResponse {
-        let a11y = try await DroidrunPortal.shared.fetchAccessibilityTree()
+        let a11y = try await DroidrunPortalTools.shared.fetchAccessibilityTree()
         return A11yResponse(accessibilityTree: a11y)
     }
     
     @HTTPRoute("GET /vision/screenshot")
     func takeScreenshot() async throws -> HTTPResponse {
-        let screenshot = try await DroidrunPortal.shared.takeScreenshot()
+        let screenshot = try await DroidrunPortalTools.shared.takeScreenshot()
         return HTTPResponse(statusCode: .ok, headers: [.contentType: "image/png"], body: screenshot)
     }
     
     @JSONRoute("POST /inputs/launch")
     func launchApp(_ body: LaunchAppBody) async throws -> LaunchAppResponse {
-        try await DroidrunPortal.shared.openApp(bundleIdentifier: body.bundleIdentifier)
+        try await DroidrunPortalTools.shared.openApp(bundleIdentifier: body.bundleIdentifier)
         return LaunchAppResponse(message: "opened \(body.bundleIdentifier)")
     }
     
     @JSONRoute("POST /gestures/tap")
     func tapElement(_ body: TapBody) async throws -> GestureResponse {
-        try await DroidrunPortal.shared.tapElement(rect: body.rect, count: body.count, longPress: body.longPress)
+        try await DroidrunPortalTools.shared.tapElement(rect: body.rect, count: body.count, longPress: body.longPress)
         return GestureResponse(message: "tapped element")
     }
     
     @JSONRoute("POST /gestures/swipe")
     func swipe(_ body: SwipeBody) async throws -> GestureResponse {
-        try await DroidrunPortal.shared.swipe(x: body.x, y: body.y, direction: body.dir)
+        try await DroidrunPortalTools.shared.swipe(x: body.x, y: body.y, direction: body.dir)
         return GestureResponse(message: "swiped")
     }
     
     @JSONRoute("POST /inputs/type")
     func enterText(_ body: TypeBody) async throws -> GestureResponse {
-        try await DroidrunPortal.shared.enterText(rect: body.rect, text: body.text)
+        try await DroidrunPortalTools.shared.enterText(rect: body.rect, text: body.text)
         return GestureResponse(message: "entered text")
     }
     
@@ -102,7 +107,7 @@ struct DroidrunPortalHandler {
             throw HTTPUnhandledError()
         }
         
-        try await DroidrunPortal.shared.pressKey(key: key)
+        try await DroidrunPortalTools.shared.pressKey(key: key)
         return GestureResponse(message: "pressed key")
     }
 }

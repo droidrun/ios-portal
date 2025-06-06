@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct droidrun_ios_portalApp: App {
+struct DroidrunPortalApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
