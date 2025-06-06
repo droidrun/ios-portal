@@ -58,7 +58,13 @@ final class DroidrunPortalTools: XCTestCase {
     
     override func setUp() {
         print("setUp DroidrunPortalTools")
+        ensureApp()
+    }
+
+    func ensureApp() {
+        print("ensureApp \(self.app)")
         if self.app == nil {
+            print("ensureApp: no app found, activating springboard")
             self.app = XCUIApplication(bundleIdentifier: "com.apple.springboard")
             self.app?.activate()
         }
@@ -93,7 +99,6 @@ final class DroidrunPortalTools: XCTestCase {
             return
         }
         
-        
         let app = XCUIApplication(bundleIdentifier: bundleIdentifier)
         
         if bundleIdentifier == "com.apple.springboard" {
@@ -116,6 +121,7 @@ final class DroidrunPortalTools: XCTestCase {
     
     @MainActor
     func fetchAccessibilityTree() throws -> String {
+        ensureApp()
         guard let app else {
             throw Error.noAppFound
         }
@@ -196,10 +202,17 @@ final class DroidrunPortalTools: XCTestCase {
         }
         try tapElement(rect: rect, count: 1, longPress: false)
         let keyboard = app.keyboards.element
-        let existsPredicate = NSPredicate(format: "exists == true")
         
-        let exp = expectation(for: existsPredicate, evaluatedWith: keyboard, handler: nil)
-        await fulfillment(of: [exp], timeout: 2, enforceOrder: false)
+        let appeared = keyboard.waitForExistence(timeout: 2)
+        guard appeared && keyboard.isHittable else {
+            throw Error.invalidTool(name: "enterText", message: "Keyboard not present or not hittable after tapping element.")
+        }
+
+        // Defensive: Check if any text field is focused
+        let focusedElement = app.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
+        guard focusedElement.exists else {
+            throw Error.invalidTool(name: "enterText", message: "No element has keyboard focus.")
+        }
         
         app.typeText(text + "\n")
     }

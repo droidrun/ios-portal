@@ -56,7 +56,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "257BF6DD2DEF0D2A00E06EE1"
-               BuildableName = "Droidrun Portal Server.xctest"
+               BuildableName = "Droidrun.xctest"
                BlueprintName = "Droidrun Server"
                ReferencedContainer = "container:droidrun-ios-portal.xcodeproj">
             </BuildableReference>
@@ -66,7 +66,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "257BF6DD2DEF0D2A00E06EE1"
-               BuildableName = "Droidrun Portal Server.xctest"
+               BuildableName = "Droidrun.xctest"
                BlueprintName = "Droidrun Server"
                ReferencedContainer = "container:droidrun-ios-portal.xcodeproj">
             </BuildableReference>
@@ -76,7 +76,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "257BF6DD2DEF0D2A00E06EE1"
-               BuildableName = "Droidrun Portal Server.xctest"
+               BuildableName = "Droidrun.xctest"
                BlueprintName = "Droidrun Server"
                ReferencedContainer = "container:droidrun-ios-portal.xcodeproj">
             </BuildableReference>
@@ -86,7 +86,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "257BF6DD2DEF0D2A00E06EE1"
-               BuildableName = "Droidrun Portal Server.xctest"
+               BuildableName = "Droidrun.xctest"
                BlueprintName = "Droidrun Server"
                ReferencedContainer = "container:droidrun-ios-portal.xcodeproj">
             </BuildableReference>

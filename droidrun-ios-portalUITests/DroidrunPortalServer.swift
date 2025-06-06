@@ -47,5 +47,6 @@ final class DroidrunPortalServer: XCTestCase {
     }
     
     @MainActor
-    func testLoop() async throws {}
+    func testLoop() async throws {
+    }
 }
