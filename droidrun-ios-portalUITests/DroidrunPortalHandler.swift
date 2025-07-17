@@ -17,6 +17,14 @@ struct A11yResponse: Encodable {
     let accessibilityTree: String
 }
 
+struct ClickablesResponse: Encodable {
+    let nodes: [AccessibilityTreeClickables.Node]
+}
+
+struct AppsResponse: Encodable {
+    let apps: [String]
+}
+
 struct LaunchAppBody: Decodable {
     let bundleIdentifier: String
 }
@@ -70,6 +78,18 @@ struct DroidrunPortalHandler {
         let a11y = try await DroidrunPortalTools.shared.fetchAccessibilityTree()
         return A11yResponse(accessibilityTree: a11y)
     }
+
+    @JSONRoute("GET /vision/clickables")
+    func fetchAccessibilityClickables() async throws -> ClickablesResponse {
+        let nodes = try await DroidrunPortalTools.shared.fetchAccessibilityClickables()
+        return ClickablesResponse(nodes: nodes)
+    }
+
+    @JSONRoute("GET /vision/apps")
+    func fetchApps() async throws -> AppsResponse {
+        let apps = await DroidrunPortalTools.shared.listApps()
+        return AppsResponse(apps: apps)
+    }
     
     @HTTPRoute("GET /vision/screenshot")
     func takeScreenshot() async throws -> HTTPResponse {
@@ -109,5 +129,11 @@ struct DroidrunPortalHandler {
         
         try await DroidrunPortalTools.shared.pressKey(key: key)
         return GestureResponse(message: "pressed key")
+    }
+
+    @HTTPRoute("GET /debug")
+    func debug(_ request: HTTPRequest) -> HTTPResponse {
+        let text = DroidrunPortalTools.shared.app.debugDescription
+        return HTTPResponse(statusCode: .accepted, body: text.data(using: .utf8) ?? Data())
     }
 }

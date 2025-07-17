@@ -47,6 +47,7 @@ extension DroidrunPortalTools {
 struct PhoneState: Codable {
     let activity: String
     let keyboardShown: Bool
+    let focusedElement: String?
 }
 
 // tools
@@ -55,25 +56,18 @@ final class DroidrunPortalTools: XCTestCase {
     var bundleIdentifier: String?
     
     static let shared = DroidrunPortalTools()
-    
-    override func setUp() {
-        print("setUp DroidrunPortalTools")
-        ensureApp()
-    }
 
-    func ensureApp() {
-        print("ensureApp \(self.app)")
-        if self.app == nil {
-            print("ensureApp: no app found, activating springboard")
-            self.app = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-            self.app?.activate()
-        }
+    func reset() {
+        self.bundleIdentifier = "com.apple.springboard"
+        self.app = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        self.app?.activate()
+        print("reset to homescreen")
     }
     
     @MainActor
     func fetchPhoneState() throws -> PhoneState {
         guard let app else {
-            return PhoneState(activity: "most likely apple springboard", keyboardShown: false)
+            return PhoneState(activity: "most likely apple springboard", keyboardShown: false, focusedElement: nil)
         }
         
         var activity = self.bundleIdentifier ?? "unknown"
@@ -89,7 +83,20 @@ final class DroidrunPortalTools: XCTestCase {
         
         let keyboardShown = app.keyboards.element.exists && app.keyboards.element.isHittable
         
-        return PhoneState(activity: activity, keyboardShown: keyboardShown)
+        // Find the focused element and get its label or identifier
+        let focusedElement = app.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
+        var focusedElementDescription: String? = nil
+        if focusedElement.exists {
+            if !focusedElement.label.isEmpty {
+                focusedElementDescription = focusedElement.label
+            } else if !focusedElement.identifier.isEmpty {
+                focusedElementDescription = focusedElement.identifier
+            } else {
+                focusedElementDescription = String(describing: focusedElement)
+            }
+        }
+        
+        return PhoneState(activity: activity, keyboardShown: keyboardShown, focusedElement: focusedElementDescription)
     }
     
     @MainActor
@@ -121,12 +128,19 @@ final class DroidrunPortalTools: XCTestCase {
     
     @MainActor
     func fetchAccessibilityTree() throws -> String {
-        ensureApp()
         guard let app else {
             throw Error.noAppFound
         }
         
         return app.accessibilityTree()
+    }
+
+    @MainActor
+    func fetchAccessibilityClickables() throws -> [AccessibilityTreeClickables.Node] {
+        guard let app else {
+            throw Error.noAppFound
+        }
+        return app.accessibilityClickables()
     }
     
     @MainActor
@@ -218,9 +232,46 @@ final class DroidrunPortalTools: XCTestCase {
     }
     
     @MainActor
+    func enterText(_ text: String) throws {
+        guard let app = self.app else {
+            throw Error.noAppFound
+        }
+        // Find the focused element
+        let focusedElement = app.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
+        guard focusedElement.exists else {
+            throw Error.invalidTool(name: "enterText", message: "No element has keyboard focus.")
+        }
+        print("Typing text into focused element: \(text)")
+        focusedElement.typeText(text)
+    }
+    
+    @MainActor
     func pressKey(key: XCUIDevice.Button) throws {
         print("Press Key \(key)")
         XCUIDevice.shared.press(key)
+    }
+    
+    @MainActor
+    func pressKeycode(_ keycode: Int) throws {
+        // Map keycodes to iOS representations
+        let keyMap: [Int: String] = [
+            66: "\n",      // Enter/Return
+            67: "\u{8}",   // Delete/Backspace
+            61: "\t"       // Tab
+        ]
+        guard let keyString = keyMap[keycode] else {
+            throw Error.invalidTool(name: "pressKeycode", message: "Unsupported keycode: \(keycode)")
+        }
+        guard let app = self.app else {
+            throw Error.noAppFound
+        }
+        // Find the focused element
+        let focusedElement = app.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
+        guard focusedElement.exists else {
+            throw Error.invalidTool(name: "pressKeycode", message: "No element has keyboard focus.")
+        }
+        print("Typing key for keycode \(keycode): \(keyString)")
+        focusedElement.typeText(keyString)
     }
     
     @MainActor
@@ -233,5 +284,29 @@ final class DroidrunPortalTools: XCTestCase {
          let snapshot = app.screenshot()*/
         
         return snapshot.pngRepresentation
+    }
+    
+    @MainActor
+    func back() throws {
+        guard let app = self.app else {
+            throw Error.noAppFound
+        }
+        // Try to tap the navigation bar back button
+        let backButton = app.navigationBars.buttons.element(boundBy: 0)
+        if backButton.exists && backButton.isHittable {
+            print("Tapping navigation bar back button")
+            backButton.tap()
+            return
+        }
+        // If not, try a right-edge swipe gesture (from left edge to right)
+        let window = app.windows.element(boundBy: 0)
+        if window.exists {
+            let start = window.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
+            let end = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            print("Performing right-edge swipe gesture for back navigation")
+            start.press(forDuration: 0.1, thenDragTo: end)
+            return
+        }
+        throw Error.invalidTool(name: "back", message: "No back navigation available.")
     }
 }

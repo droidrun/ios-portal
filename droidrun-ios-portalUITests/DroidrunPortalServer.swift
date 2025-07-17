@@ -22,16 +22,13 @@ final class DroidrunPortalServer: XCTestCase {
         
         // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
         
+        DroidrunPortalTools.shared.reset()
         server = HTTPServer(port: self.port, handler: DroidrunPortalHandler())
-        
-        // UI tests must launch the application that they test.
-        // let app = XCUIApplication()
-        // app.launch()
         
         Task {
             try? await server.run()
         }
-        
+                
         RunLoop.main.run()
     }
     
