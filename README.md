@@ -289,7 +289,7 @@ This project is part of the larger Droidrun automation framework. Contributions 
 
 ## License
 
-[Add appropriate license information]
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
 
