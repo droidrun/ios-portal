@@ -247,6 +247,126 @@ requests.post('http://device-ip:6643/gestures/tap',
               json={'rect': '{{100,200},{50,50}}', 'count': 1})
 ```
 
+### A fully working example
+
+```python
+import asyncio
+from typing import List, Dict, Any, Tuple
+from droidrun import IOSTools, DroidAgent
+
+
+class CompleteIOSTools(IOSTools):
+    """Complete implementation of IOSTools with all required abstract methods."""
+
+    def _set_context(self, ctx):
+        """Set the workflow context (required by DroidAgent)."""
+        self._ctx = ctx
+
+    def get_date(self) -> str:
+        """Get the current date and time on iOS device."""
+        try:
+            import requests
+            date_url = f"{self.url}/system/date"
+            response = requests.get(date_url)
+            if response.status_code == 200:
+                return response.json().get("date", "Unknown")
+            else:
+                # Fallback to returning current system time
+                import datetime
+                return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            import datetime
+            return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def get_apps(self, include_system: bool = True) -> List[Dict[str, Any]]:
+        """Get installed apps with bundle identifier and name."""
+        packages = self.list_packages(include_system_apps=include_system)
+        # Convert to format expected by the method
+        return [{"package": pkg, "label": pkg.split(".")[-1]} for pkg in packages]
+
+    def _extract_element_coordinates_by_index(self, index: int) -> Tuple[int, int]:
+        """Extract center coordinates from an element by its index."""
+        if not self.clickable_elements_cache:
+            raise ValueError("No UI elements cached. Call get_state first.")
+
+        # Find element with the given index
+        for element in self.clickable_elements_cache:
+            if element.get("index") == index:
+                center_x = element.get("center_x")
+                center_y = element.get("center_y")
+                if center_x is not None and center_y is not None:
+                    return (int(center_x), int(center_y))
+
+        raise ValueError(f"No element found with index {index}")
+
+    def input_text(self, text: str, index: int = -1, clear: bool = False) -> str:
+        """
+        Input text on the iOS device.
+
+        Args:
+            text: Text to input. Can contain spaces, newlines, and special characters including non-ASCII.
+            index: Element index to input text into (optional, -1 means use last tapped element)
+            clear: Whether to clear existing text before input (not currently supported for iOS)
+
+        Returns:
+            Result message
+        """
+        try:
+            import requests
+            import time
+
+            # If index is provided and valid, tap on that element first
+            if index >= 0:
+                self.tap_by_index(index)
+
+            # Note: clear parameter is not currently supported by iOS portal API
+            # Future enhancement could add support for clearing text
+
+            # Use the last tapped element's rect if available, otherwise use a default
+            rect = self.last_tapped_rect if self.last_tapped_rect else "0,0,100,100"
+
+            type_url = f"{self.url}/inputs/type"
+            payload = {"rect": rect, "text": text}
+
+            response = requests.post(type_url, json=payload)
+            if response.status_code == 200:
+                time.sleep(0.5)  # Wait for text input to complete
+                return f"Text input completed: {text[:50]}{'...' if len(text) > 50 else ''}"
+            else:
+                return f"Error: Failed to input text. HTTP {response.status_code}"
+
+        except Exception as e:
+            return f"Error sending text input: {str(e)}"
+
+
+async def main():
+    from droidrun import load_llm
+    import os
+
+    GEMINI_API_KEY = "" 
+
+    os.environ["GOOGLE_API_KEY"] = GEMINI_API_KEY
+
+    tools = CompleteIOSTools(
+        url="http://localhost:6643",
+    )
+
+    llm = load_llm("GoogleGenAI", model="gemini-2.5-flash")
+
+    agent = DroidAgent(
+        goal="Open Settings and check WiFi",
+        tools=tools,
+        llms=llm  # Provide LLM instance
+    )
+
+    result = await agent.run()
+    print(f"\n✅ Result: {result}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+```
+
 ## Technical Details
 
 ### Dependencies
