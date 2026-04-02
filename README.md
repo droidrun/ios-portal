@@ -19,97 +19,228 @@ The Droidrun iOS Portal is a specialized iOS application that runs UI tests to e
 1. **Portal App** (`droidrun-ios-portal`): A minimal SwiftUI application that serves as the host
 2. **Portal Server** (`droidrun-ios-portalUITests`): XCTest-based HTTP server providing automation APIs
 
+## First-Time Setup
+
+```bash
+open droidrun-ios-portal.xcodeproj
+```
+
+In Xcode:
+
+1. Set your signing team for both targets:
+   - `droidrun-ios-portal`
+   - `droidrun-ios-portalUITests`
+2. Change both bundle identifiers to unique values you own.
+3. Let Xcode generate signing assets for your Apple Developer account.
+
+Example bundle identifiers:
+- `com.yourname.droidrun-ios-portal`
+- `com.yourname.droidrun-ios-portalUITests`
+
+The default bundle identifiers are not reusable under your Apple Developer account.
+
+If you are deploying to a physical device, you may also need to trust your developer certificate on the device:
+- `Settings > General > VPN & Device Management`
+- select your developer profile
+- tap **Trust**
+
+## Run
+
+```bash
+# physical device
+./device.sh YOUR_DEVICE_UDID
+iproxy 6643 6643
+
+# simulator
+./simulator.sh "iPhone 16 Pro"
+
+# verify
+curl http://127.0.0.1:6643/device/date
+curl http://127.0.0.1:6643/state
+```
+
+The server listens on the first available port in the `6643-6652` range.
+
 ## Architecture
 
 The portal leverages iOS XCTest framework and XCUITest capabilities to:
-- Extract UI state information (accessibility trees, screenshots)
+- Extract UI state information (unified state payloads, screenshots)
 - Perform automated interactions (taps, swipes, text input)
 - Launch and manage applications
 - Handle device-level inputs
 
 ### Key Components
 
-- **DroidrunPortalServer**: XCTest class that runs an HTTP server on port 6643
+- **DroidrunPortalServer**: XCTest class that runs an HTTP server on the first free port in `6643-6652`
 - **DroidrunPortalHandler**: HTTP route handler defining the REST API endpoints
 - **DroidrunPortalTools**: Core automation engine implementing device interactions
 - **AccessibilityTree**: UI state extraction and compression utilities
 
+## Setup
+
+The portal runs as an Xcode UI test. On physical devices, access it locally over USB port forwarding with `iproxy`.
+
+### Prerequisites
+
+- macOS with Xcode 15+
+- Apple Developer account for signing
+- iPhone/iPad with Developer Mode enabled, or an iOS Simulator
+- `iproxy` from `libimobiledevice` for physical devices
+
+```bash
+brew install libimobiledevice
+```
+
+### Run on a physical device
+
+1. Open `droidrun-ios-portal.xcodeproj` in Xcode.
+2. Update signing for both targets:
+   - `droidrun-ios-portal`
+   - `droidrun-ios-portalUITests`
+3. Change the bundle identifiers to your own unique values.
+   You must do this before building. The default bundle identifiers are not available for reuse in your Apple Developer account.
+
+Example:
+- `com.yourname.droidrun-ios-portal`
+- `com.yourname.droidrun-ios-portalUITests`
+
+4. Let Xcode create signing assets for your Apple Developer account.
+5. If prompted on the device, trust your developer certificate:
+   - `Settings > General > VPN & Device Management`
+   - select your developer profile
+   - tap **Trust**
+6. Start the server test:
+
+```bash
+# Find the device UDID first
+xcrun xctrace list devices
+
+# Run the "Droidrun Server" UI test on the device
+./device.sh YOUR_DEVICE_UDID
+```
+
+7. Forward the port from the device to your Mac:
+
+```bash
+iproxy 6643 6643
+```
+
+If `6643` is already taken, the server automatically falls back to the next free port up to `6652`. In that case, forward the chosen port instead.
+
+### Run on the simulator
+
+```bash
+xcrun simctl list devices available
+./simulator.sh "iPhone 16 Pro"
+```
+
+The simulator portal is available directly on `http://127.0.0.1:6643` unless the server binds to a later port in the scan range.
+
+### Verify the server
+
+```bash
+curl http://127.0.0.1:6643/device/date
+```
+
+Example response:
+
+```json
+{
+  "date": "2026-03-31 10:30:00"
+}
+```
+
 ## API Reference
 
-### Device Information
+### State & Observation
 
-#### GET `/`
-Returns basic device information and description.
+#### GET `/state`
+
+Returns the unified state payload used by Droidrun.
 
 **Response:**
+
 ```json
 {
-  "description": "Device description string"
+  "a11y_tree": "Compressed accessibility tree string",
+  "phone_state": {
+    "currentApp": "Home Screen",
+    "packageName": "com.apple.springboard",
+    "keyboardVisible": false,
+    "isEditable": false,
+    "focusedElement": null
+  },
+  "device_context": {
+    "screen_bounds": {
+      "width": 430,
+      "height": 932
+    }
+  }
 }
 ```
 
-### Vision & State Extraction
-
-#### GET `/vision/state`
-Retrieves current phone state including active app and keyboard status.
-
-**Response:**
-```json
-{
-  "activity": "com.example.app - Screen Title",
-  "keyboardShown": false
-}
-```
-
-#### GET `/vision/a11y`
-Extracts the accessibility tree of the current UI state.
-
-**Response:**
-```json
-{
-  "accessibilityTree": "Compressed accessibility tree string"
-}
-```
+Notes:
+- `a11y_tree` is returned as compressed text, not structured JSON.
+- On transient state errors, the server returns an empty fallback payload instead of closing the connection.
 
 #### GET `/vision/screenshot`
+
 Captures a screenshot of the current screen.
 
-**Response:** PNG image data (Content-Type: image/png)
+**Response:** PNG image data (`Content-Type: image/png`)
+
+#### GET `/device/date`
+
+Returns the current device date and time as a string.
+
+**Response:**
+
+```json
+{
+  "date": "2026-03-31 10:30:00"
+}
+```
 
 ### App Management
 
 #### POST `/inputs/launch`
+
 Launches an application by bundle identifier.
 
 **Request Body:**
+
 ```json
 {
-  "bundleIdentifier": "com.example.app"
+  "bundleIdentifier": "com.apple.mobilesafari"
 }
 ```
 
 **Response:**
+
 ```json
 {
-  "message": "opened com.example.app"
+  "message": "opened com.apple.mobilesafari"
 }
 ```
 
 ### Gesture Automation
 
 #### POST `/gestures/tap`
-Performs tap gestures on screen coordinates.
+
+Performs a tap, double-tap, or long-press on a rect.
 
 **Request Body:**
+
 ```json
 {
-  "rect": "{{x,y},{width,height}}",
+  "rect": "{{100,200},{50,50}}",
   "count": 1,
   "longPress": false
 }
 ```
 
 **Response:**
+
 ```json
 {
   "message": "tapped element"
@@ -117,40 +248,60 @@ Performs tap gestures on screen coordinates.
 ```
 
 #### POST `/gestures/swipe`
-Performs swipe gestures from specified coordinates.
+
+Performs a swipe between two points.
 
 **Request Body:**
+
 ```json
 {
-  "x": 100.0,
-  "y": 200.0,
-  "dir": "up"
+  "x1": 200.0,
+  "y1": 800.0,
+  "x2": 200.0,
+  "y2": 200.0,
+  "durationMs": 600
 }
 ```
 
-**Supported directions:** `up`, `down`, `left`, `right`
-
 **Response:**
+
 ```json
 {
   "message": "swiped"
 }
 ```
 
-### Input Automation
+#### POST `/gestures/back`
 
-#### POST `/inputs/type`
-Enters text into a focused input field.
+Requests backward navigation.
 
-**Request Body:**
+**Response:**
+
 ```json
 {
-  "rect": "{{x,y},{width,height}}",
-  "text": "Hello World"
+  "message": "navigated back"
 }
 ```
 
+### Input Automation
+
+#### POST `/inputs/type`
+
+Types into the currently focused input.
+
+**Request Body:**
+
+```json
+{
+  "text": "Hello World",
+  "clear": true
+}
+```
+
+`rect` is also accepted as an optional field.
+
 **Response:**
+
 ```json
 {
   "message": "entered text"
@@ -158,21 +309,26 @@ Enters text into a focused input field.
 ```
 
 #### POST `/inputs/key`
-Presses device hardware keys.
+
+Presses a supported hardware key.
 
 **Request Body:**
+
 ```json
 {
-  "key": 0
+  "key": 1
 }
 ```
 
 **Supported keys:**
-- `0`: Home button
-- `4`: Action button
-- `5`: Camera button
+- `1`: Home
+- `2`: Volume Up (device only)
+- `3`: Volume Down (device only)
+- `4`: Action
+- `5`: Camera
 
 **Response:**
+
 ```json
 {
   "message": "pressed key"
@@ -182,15 +338,16 @@ Presses device hardware keys.
 ## Features
 
 ### UI State Extraction
+- **Unified State**: One `/state` response containing accessibility tree, phone state, and screen bounds
 - **Accessibility Tree**: Compressed representation of the UI hierarchy with memory addresses removed
 - **Screenshots**: PNG format screen captures
-- **App State**: Current application context and keyboard status
+- **App State**: Current application context, keyboard status, and focused element details
 
 ### Automation Capabilities
 - **App Launching**: Launch any installed app by bundle identifier
 - **Touch Interactions**: Single taps, double taps, long presses
-- **Gesture Recognition**: Swipe gestures in four directions
-- **Text Input**: Automated typing with keyboard handling
+- **Gesture Recognition**: Coordinate-based swipes and back navigation
+- **Text Input**: Automated typing with optional field clearing
 - **Hardware Keys**: Device button presses
 
 ### Smart Features
@@ -200,17 +357,6 @@ Presses device hardware keys.
 - **Error Handling**: Comprehensive error reporting and validation
 
 ## Usage
-
-### Prerequisites
-- iOS device or simulator
-- Xcode with XCTest capabilities
-- Network access to the device
-
-### Running the Portal
-
-1. Build and run the portal app on the target iOS device
-2. The XCTest suite will automatically start the HTTP server on port 6643
-3. The server will continue running until the test session ends
 
 ### Client Integration
 
@@ -225,227 +371,42 @@ The portal is designed to work with automation agents that can:
 ```python
 import requests
 
-# Get device info
-response = requests.get('http://device-ip:6643/')
-device_info = response.json()
+# Health check
+date = requests.get("http://127.0.0.1:6643/device/date").json()
+print(date["date"])
+
+# Get unified state
+state = requests.get("http://127.0.0.1:6643/state").json()
+print(state["phone_state"])
 
 # Take screenshot
-screenshot = requests.get('http://device-ip:6643/vision/screenshot')
-with open('screenshot.png', 'wb') as f:
+screenshot = requests.get("http://127.0.0.1:6643/vision/screenshot")
+with open("screenshot.png", "wb") as f:
     f.write(screenshot.content)
 
-# Get accessibility tree
-a11y = requests.get('http://device-ip:6643/vision/a11y').json()
-print(a11y['accessibilityTree'])
-
 # Launch app
-requests.post('http://device-ip:6643/inputs/launch', 
-              json={'bundleIdentifier': 'com.apple.mobilesafari'})
+requests.post(
+    "http://127.0.0.1:6643/inputs/launch",
+    json={"bundleIdentifier": "com.apple.mobilesafari"},
+)
 
 # Perform tap
-requests.post('http://device-ip:6643/gestures/tap',
-              json={'rect': '{{100,200},{50,50}}', 'count': 1})
-```
+requests.post(
+    "http://127.0.0.1:6643/gestures/tap",
+    json={"rect": "{{100,200},{50,50}}", "count": 1, "longPress": False},
+)
 
-### A fully working example
+# Perform swipe
+requests.post(
+    "http://127.0.0.1:6643/gestures/swipe",
+    json={"x1": 200, "y1": 800, "x2": 200, "y2": 200, "durationMs": 600},
+)
 
-```python
-import asyncio
-from typing import List, Dict, Any, Tuple
-from droidrun import IOSTools, DroidAgent
-import logging
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
-class CompleteIOSTools(IOSTools):
-    """Complete implementation of IOSTools with all required abstract methods."""
-
-    def _set_context(self, ctx):
-        """Set the workflow context (required by DroidAgent)."""
-        self._ctx = ctx
-
-    async def get_date(self) -> str:
-        """Get the current date and time on iOS device."""
-        try:
-            import requests
-
-            date_url = f"{self.url}/system/date"
-            response = requests.get(date_url)
-            if response.status_code == 200:
-                return response.json().get("date", "Unknown")
-            else:
-                # Fallback to returning current system time
-                import datetime
-
-                return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        except Exception:
-            import datetime
-
-            return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    async def get_apps(self, include_system: bool = True) -> List[Dict[str, Any]]:
-        """Get installed apps with bundle identifier and name."""
-        # Use await because we override list_packages to be async
-        packages = await self.list_packages(include_system_apps=include_system)
-        # Convert to format expected by the method
-        return [{"package": pkg, "label": pkg.split(".")[-1]} for pkg in packages]
-
-    def _extract_element_coordinates_by_index(self, index: int) -> Tuple[int, int]:
-        """Extract center coordinates from an element by its index."""
-        if not self.clickable_elements_cache:
-            raise ValueError("No UI elements cached. Call get_state first.")
-
-        # Find element with the given index
-        for element in self.clickable_elements_cache:
-            if element.get("index") == index:
-                center_x = element.get("center_x")
-                center_y = element.get("center_y")
-                if center_x is not None and center_y is not None:
-                    return (int(center_x), int(center_y))
-
-        raise ValueError(f"No element found with index {index}")
-
-    async def input_text(self, text: str, index: int = -1, clear: bool = False) -> str:
-        """
-        Input text on the iOS device.
-
-        Args:
-            text: Text to input. Can contain spaces, newlines, and special characters including non-ASCII.
-            index: Element index to input text into (optional, -1 means use last tapped element)
-            clear: Whether to clear existing text before input (not currently supported for iOS)
-
-        Returns:
-            Result message
-        """
-        try:
-            import requests
-            import time
-
-            # If index is provided and valid, tap on that element first
-            if index >= 0:
-                await self.tap_by_index(index)
-
-            # Note: clear parameter is not currently supported by iOS portal API
-            # Future enhancement could add support for clearing text
-
-            # Use the last tapped element's rect if available, otherwise use a default
-            rect = self.last_tapped_rect if self.last_tapped_rect else "0,0,100,100"
-
-            type_url = f"{self.url}/inputs/type"
-            payload = {"rect": rect, "text": text}
-
-            response = requests.post(type_url, json=payload)
-            if response.status_code == 200:
-                time.sleep(0.5)  # Wait for text input to complete
-                return f"Text input completed: {text[:50]}{'...' if len(text) > 50 else ''}"
-            else:
-                return f"Error: Failed to input text. HTTP {response.status_code}"
-
-        except Exception as e:
-            return f"Error sending text input: {str(e)}"
-
-    async def tap_on_index(self, index: int) -> str:
-        """Alias for tap_by_index."""
-        return await self.tap_by_index(index)
-
-    def _format_elements(self, elements: List[Dict[str, Any]]) -> str:
-        """Format elements for LLM consumption."""
-        lines = []
-        for elem in elements:
-            idx = elem.get("index")
-            text = elem.get("text", "")
-            type_ = elem.get("type", "")
-            lines.append(f"[{idx}] {type_} '{text}'")
-        return "\n".join(lines)
-
-    # Overrides for IOSTools sync methods to make them async for DroidAgent compatibility
-
-    async def get_state(self):
-        # Call parent sync method
-        state_dict = super().get_state()
-
-        a11y_tree = state_dict.get("a11y_tree", [])
-        phone_state = state_dict.get("phone_state", {})
-
-        formatted_text = self._format_elements(a11y_tree)
-        focused_text = ""  # No focus info for now
-
-        return formatted_text, focused_text, a11y_tree, phone_state
-
-    async def tap_by_index(self, index: int) -> str:
-        return super().tap_by_index(index)
-
-    async def swipe(
-        self, start_x: int, start_y: int, end_x: int, end_y: int, duration_ms: int = 300
-    ) -> bool:
-        return super().swipe(start_x, start_y, end_x, end_y, duration_ms)
-
-    async def drag(
-        self,
-        start_x: int,
-        start_y: int,
-        end_x: int,
-        end_y: int,
-        duration_ms: int = 3000,
-    ) -> bool:
-        return super().drag(start_x, start_y, end_x, end_y, duration_ms)
-
-    async def back(self) -> str:
-        try:
-            return super().back()
-        except NotImplementedError:
-            return "Error: Back button is not supported on iOS"
-
-    async def press_key(self, keycode: int) -> str:
-        return super().press_key(keycode)
-
-    async def start_app(self, package: str, activity: str = "") -> str:
-        return super().start_app(package, activity)
-
-    async def take_screenshot(self) -> Tuple[str, bytes]:
-        return super().take_screenshot()
-
-    async def list_packages(self, include_system_apps: bool = False) -> List[str]:
-        return super().list_packages(include_system_apps)
-
-    async def get_memory(self) -> List[str]:
-        return super().get_memory()
-
-    async def complete(self, success: bool, reason: str = "") -> None:
-        return super().complete(success, reason)
-
-
-async def main():
-    from droidrun import load_llm
-    import os
-
-    GEMINI_API_KEY = ""
-
-    os.environ["GOOGLE_API_KEY"] = GEMINI_API_KEY
-
-    tools = CompleteIOSTools(
-        url="http://localhost:6643",
-    )
-
-    llm = load_llm("GoogleGenAI", model="gemini-2.5-flash")
-
-    agent = DroidAgent(
-        goal="Open Settings and check WiFi",
-        tools=tools,
-        llms=llm,  # Provide LLM instance
-    )
-
-    result = await agent.run()
-    print(f"\n✅ Result: {result}")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-
-
+# Type text into the focused field
+requests.post(
+    "http://127.0.0.1:6643/inputs/type",
+    json={"text": "Hello from Droidrun", "clear": True},
+)
 ```
 
 ## Technical Details
@@ -456,7 +417,7 @@ if __name__ == "__main__":
 - **SwiftUI**: User interface framework
 
 ### Server Configuration
-- **Port**: 6643 (configurable)
+- **Port**: first free port in `6643-6652`
 - **Protocol**: HTTP/1.1
 - **Content Types**: JSON, PNG images
 - **Threading**: Async/await support
@@ -464,13 +425,13 @@ if __name__ == "__main__":
 ### Coordinate System
 - Uses iOS coordinate system (points, not pixels)
 - Rectangle format: `"{{x,y},{width,height}}"`
-- Swipe coordinates specify starting points
+- Swipe coordinates are explicit start and end points
 
 ## Limitations
 
 - Requires iOS testing environment to run
 - Limited to apps accessible through XCUITest
-- Network access required for remote operation
+- Physical-device usage typically relies on `iproxy` over USB
 - Some system-level interactions may be restricted
 
 ## Security Considerations
