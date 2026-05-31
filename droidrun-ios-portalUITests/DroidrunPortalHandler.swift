@@ -35,6 +35,10 @@ struct GestureResponse: Encodable {
     let message: String
 }
 
+struct ErrorResponse: Encodable {
+    let error: String
+}
+
 struct TypeBody: Decodable {
     let rect: String?
     let text: String
@@ -76,6 +80,16 @@ struct StateFullResponse: Encodable {
 
 @HTTPHandler
 struct DroidrunPortalHandler {
+    private func jsonResponse<T: Encodable>(
+        _ body: T,
+        statusCode: HTTPStatusCode = .ok
+    ) throws -> HTTPResponse {
+        return try HTTPResponse(
+            statusCode: statusCode,
+            headers: [.contentType: "application/json"],
+            body: JSONEncoder().encode(body)
+        )
+    }
 
     @JSONRoute("GET /state")
     func stateFull() async throws -> StateFullResponse {
@@ -137,14 +151,29 @@ struct DroidrunPortalHandler {
         return GestureResponse(message: "entered text")
     }
 
-    @JSONRoute("POST /inputs/key")
-    func pressKey(_ body: KeyBody) async throws -> GestureResponse {
-        guard let key = XCUIDevice.Button(rawValue: body.key) else {
-            throw HTTPUnhandledError()
+    @HTTPRoute("POST /inputs/key")
+    func pressKey(_ request: HTTPRequest) async throws -> HTTPResponse {
+        let body = try await JSONDecoder().decode(KeyBody.self, from: request.bodyData)
+
+        guard let key = PortalHardwareKey(rawValue: body.key) else {
+            return try jsonResponse(
+                ErrorResponse(
+                    error: "Unsupported key \(body.key). Supported keys: \(PortalHardwareKey.supportedKeysDescription)."
+                ),
+                statusCode: .badRequest
+            )
         }
 
-        try await DroidrunPortalTools.shared.pressKey(key: key)
-        return GestureResponse(message: "pressed key")
+        do {
+            try await DroidrunPortalTools.shared.pressKey(key: key)
+        } catch let error as DroidrunPortalTools.Error {
+            return try jsonResponse(
+                ErrorResponse(error: error.localizedDescription),
+                statusCode: .badRequest
+            )
+        }
+
+        return try jsonResponse(GestureResponse(message: "pressed key"))
     }
 
     @JSONRoute("POST /gestures/back")

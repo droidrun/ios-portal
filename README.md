@@ -163,14 +163,16 @@ Presses device hardware keys.
 **Request Body:**
 ```json
 {
-  "key": 0
+  "key": 1
 }
 ```
 
 **Supported keys:**
-- `0`: Home button
-- `4`: Action button
-- `5`: Camera button
+- `1`: Home button
+- `2`: Volume up, physical device only
+- `3`: Volume down, physical device only
+- `4`: Action, iOS 17+ and supported hardware only
+- `5`: Camera, iOS 18+ and supported hardware only
 
 **Response:**
 ```json
@@ -494,4 +496,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Note**: This is the iOS portal component of the Droidrun framework. For complete automation workflows, integrate with the corresponding agent component that orchestrates automation tasks using this portal's API. 
+**Note**: This is the iOS portal component of the Droidrun framework. For complete automation workflows, integrate with the corresponding agent component that orchestrates automation tasks using this portal's API.

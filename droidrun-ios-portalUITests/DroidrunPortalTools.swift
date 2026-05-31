@@ -8,17 +8,69 @@
 import Foundation
 import XCTest
 
-extension XCUIDevice.Button {
-    init?(rawValue: Int) {
-        switch rawValue {
-        case 1: self = .home
+enum PortalHardwareKey: Int {
+    case home = 1
+    case volumeUp = 2
+    case volumeDown = 3
+    case action = 4
+    case camera = 5
+
+    static let supportedKeysDescription =
+        "1 (home), 2 (volume up), 3 (volume down), 4 (action; iOS 17+ with supported hardware), 5 (camera; iOS 18+ with supported hardware)"
+
+    var displayName: String {
+        switch self {
+        case .home:
+            return "home"
+        case .volumeUp:
+            return "volume up"
+        case .volumeDown:
+            return "volume down"
+        case .action:
+            return "action"
+        case .camera:
+            return "camera"
+        }
+    }
+
+    var availabilityDescription: String {
+        switch self {
+        case .home:
+            return "home button"
+        case .volumeUp:
+            return "volume up button on a physical device"
+        case .volumeDown:
+            return "volume down button on a physical device"
+        case .action:
+            return "action button on iOS 17 or newer with supported hardware"
+        case .camera:
+            return "camera button on iOS 18 or newer with supported hardware"
+        }
+    }
+
+    var button: XCUIDevice.Button? {
+        switch self {
+        case .home:
+            return .home
         #if !targetEnvironment(simulator)
-        case 2: self = .volumeUp
-        case 3: self = .volumeDown
+        case .volumeUp:
+            return .volumeUp
+        case .volumeDown:
+            return .volumeDown
+        #else
+        case .volumeUp, .volumeDown:
+            return nil
         #endif
-        case 4: self = .action
-        case 5: self = .camera
-        default: return nil
+        case .action:
+            if #available(iOS 17.0, *) {
+                return .action
+            }
+            return nil
+        case .camera:
+            if #available(iOS 18.0, *) {
+                return .camera
+            }
+            return nil
         }
     }
 }
@@ -27,6 +79,7 @@ extension DroidrunPortalTools {
     enum Error: Swift.Error, LocalizedError {
         case invalidTool(name: String?, message: String)
         case noAppFound
+        case unsupportedKey(key: Int, message: String)
 
         var errorDescription: String? {
             switch self {
@@ -34,6 +87,8 @@ extension DroidrunPortalTools {
                 "Invalid tool \(name ?? "unknown"): \(message)"
             case .noAppFound:
                 "No app found to interact with, try to open an app first."
+            case .unsupportedKey(let key, let message):
+                "Unsupported key \(key): \(message)"
             }
         }
     }
@@ -411,9 +466,23 @@ final class DroidrunPortalTools: XCTestCase {
     // MARK: - Device
 
     @MainActor
-    func pressKey(key: XCUIDevice.Button) throws {
-        print("Press Key \(key)")
-        XCUIDevice.shared.press(key)
+    func pressKey(key portalKey: PortalHardwareKey) throws {
+        guard let button = portalKey.button else {
+            throw Error.unsupportedKey(
+                key: portalKey.rawValue,
+                message: "\(portalKey.displayName) requires \(portalKey.availabilityDescription). Supported keys: \(PortalHardwareKey.supportedKeysDescription)."
+            )
+        }
+
+        guard XCUIDevice.shared.hasHardwareButton(button) else {
+            throw Error.unsupportedKey(
+                key: portalKey.rawValue,
+                message: "This device does not have a \(portalKey.displayName) hardware button. Supported keys: \(PortalHardwareKey.supportedKeysDescription)."
+            )
+        }
+
+        print("Press Key \(button)")
+        XCUIDevice.shared.press(button)
     }
 
     @MainActor
