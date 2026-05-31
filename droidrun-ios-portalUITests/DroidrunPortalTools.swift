@@ -474,6 +474,12 @@ final class DroidrunPortalTools: XCTestCase {
             )
         }
 
+        if portalKey == .home {
+            print("Press Key \(button)")
+            XCUIDevice.shared.press(button)
+            return
+        }
+
         guard XCUIDevice.shared.hasHardwareButton(button) else {
             throw Error.unsupportedKey(
                 key: portalKey.rawValue,
