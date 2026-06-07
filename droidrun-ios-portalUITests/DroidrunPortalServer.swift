@@ -50,8 +50,8 @@ final class DroidrunPortalServer: XCTestCase {
 
         Task {
             do {
-                // server.run() blocks forever on success, throws on bind error
-                try await server.run()
+                // FlyingFox 0.16 uses start(); newer versions renamed this to run().
+                try await server.start()
             } catch {
                 ok = false
                 print("Port \(port) unavailable: \(error.localizedDescription)")
