@@ -103,15 +103,93 @@ struct FocusedElement: Codable {
 final class DroidrunPortalTools: XCTestCase {
     private let springboardBundleIdentifier = "com.apple.springboard"
     private let stateWindowTimeout: TimeInterval = 2
+    private let knownForegroundBundleIdentifiers = [
+        "ai.mobilerun.mobilerun-ios-portal",
+        "com.apple.Bridge",
+        "com.apple.DocumentsApp",
+        "com.apple.Fitness",
+        "com.apple.Health",
+        "com.apple.Maps",
+        "com.apple.MobileAddressBook",
+        "com.apple.MobileSMS",
+        "com.apple.Passbook",
+        "com.apple.Passwords",
+        "com.apple.Preferences",
+        "com.apple.PreviewShell",
+        "com.apple.mobilecal",
+        "com.apple.mobilesafari",
+        "com.apple.mobileslideshow",
+        "com.apple.news",
+        "com.apple.reminders",
+        "com.apple.shortcuts",
+        "com.apple.webapp",
+    ]
 
     var app: XCUIApplication?
     var bundleIdentifier: String?
+    private var lastHomePressAt: Date?
 
     static let shared = DroidrunPortalTools()
 
     private func setSpringboardApp() {
         self.bundleIdentifier = springboardBundleIdentifier
         self.app = XCUIApplication(bundleIdentifier: springboardBundleIdentifier)
+    }
+
+    @MainActor
+    private func setTrackedApp(bundleIdentifier: String, app: XCUIApplication) {
+        self.bundleIdentifier = bundleIdentifier
+        self.app = app
+        if bundleIdentifier != springboardBundleIdentifier {
+            self.lastHomePressAt = nil
+        }
+    }
+
+    @MainActor
+    private func clearTrackedApp() {
+        self.bundleIdentifier = nil
+        self.app = nil
+        self.lastHomePressAt = nil
+    }
+
+    @MainActor
+    private func shouldRefreshSpringboardState() -> Bool {
+        guard let lastHomePressAt else {
+            return true
+        }
+        return Date().timeIntervalSince(lastHomePressAt) > 1.0
+    }
+
+    @MainActor
+    private func refreshForegroundAppFromKnownBundles(timeout: TimeInterval) {
+        let deadline = Date().addingTimeInterval(timeout)
+        var springboardIsForeground = false
+
+        repeat {
+            for knownBundleIdentifier in knownForegroundBundleIdentifiers {
+                let candidate = XCUIApplication(bundleIdentifier: knownBundleIdentifier)
+                if candidate.state == .runningForeground {
+                    if bundleIdentifier != knownBundleIdentifier {
+                        print("Foreground app refreshed to \(knownBundleIdentifier)")
+                    }
+                    setTrackedApp(bundleIdentifier: knownBundleIdentifier, app: candidate)
+                    return
+                }
+            }
+
+            springboardIsForeground = XCUIApplication(bundleIdentifier: springboardBundleIdentifier).state == .runningForeground
+            if timeout <= 0 || Date() >= deadline {
+                break
+            }
+
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+        } while true
+
+        if springboardIsForeground {
+            setSpringboardApp()
+        } else {
+            clearTrackedApp()
+        }
     }
 
     func reset() {
@@ -173,6 +251,10 @@ final class DroidrunPortalTools: XCTestCase {
 
     @MainActor
     func fetchStateFull() throws -> StateFullResponse {
+        if bundleIdentifier == springboardBundleIdentifier, shouldRefreshSpringboardState() {
+            refreshForegroundAppFromKnownBundles(timeout: 0.5)
+        }
+
         guard let app else {
             let screen = fallbackScreenBounds()
             return StateFullResponse(
@@ -302,8 +384,7 @@ final class DroidrunPortalTools: XCTestCase {
             app.launch()
         }
 
-        self.bundleIdentifier = bundleIdentifier
-        self.app = app
+        setTrackedApp(bundleIdentifier: bundleIdentifier, app: app)
     }
 
     // MARK: - Accessibility
@@ -336,6 +417,7 @@ final class DroidrunPortalTools: XCTestCase {
         guard let app else {
             throw Error.noAppFound
         }
+        let shouldRefreshAfterTap = bundleIdentifier == springboardBundleIdentifier
         let coordinate = NSCoder.cgRect(for: coordinateString)
         let midPoint = CGPoint(x: coordinate.midX, y: coordinate.midY)
         let startCoordinate = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
@@ -348,6 +430,10 @@ final class DroidrunPortalTools: XCTestCase {
             } else {
                 targetCoordinate.tap()
             }
+        }
+        if shouldRefreshAfterTap {
+            lastHomePressAt = nil
+            refreshForegroundAppFromKnownBundles(timeout: 3)
         }
     }
 
@@ -484,6 +570,7 @@ final class DroidrunPortalTools: XCTestCase {
             print("Press Key \(button)")
             XCUIDevice.shared.press(button)
             setSpringboardApp()
+            lastHomePressAt = Date()
             return
         }
 

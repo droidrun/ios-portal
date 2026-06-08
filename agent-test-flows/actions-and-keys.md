@@ -169,6 +169,120 @@ Expected:
 - Home state reports `currentApp` as `Home Screen`.
 - Relaunching Settings returns `{"message":"opened com.apple.Preferences"}`.
 
+## Home Icon Regression
+
+This verifies that tapping a Home-screen icon refreshes the portal's stored app
+reference before the next `/state` call.
+
+```bash
+curl -fsS -X POST http://127.0.0.1:6643/inputs/key \
+  -H "Content-Type: application/json" \
+  -d '{"key":1}'
+
+curl -fsS http://127.0.0.1:6643/state > <output-dir>/home-state.json
+
+python3 - <<'PY'
+import json
+import re
+from pathlib import Path
+
+state = json.loads(Path("<output-dir>/home-state.json").read_text())
+phone_state = state["phone_state"]
+assert phone_state["packageName"] == "com.apple.springboard", phone_state
+
+for line in state["a11y_tree"].splitlines():
+    if "Icon" in line and "Settings" in line:
+        match = re.search(r"\{\{([0-9.]+),\s*([0-9.]+)\},\s*\{([0-9.]+),\s*([0-9.]+)\}\}", line)
+        if match:
+            x, y, w, h = map(float, match.groups())
+            Path("<output-dir>/settings-icon-rect.txt").write_text(
+                f"{{{{{x:.1f}, {y:.1f}}}, {{{w:.1f}, {h:.1f}}}}}"
+            )
+            break
+else:
+    raise AssertionError("Settings icon not visible on Home screen")
+PY
+
+rect="$(cat <output-dir>/settings-icon-rect.txt)"
+curl -fsS -X POST http://127.0.0.1:6643/gestures/tap \
+  -H "Content-Type: application/json" \
+  -d "{\"rect\":\"$rect\",\"count\":1,\"longPress\":false}"
+
+curl -fsS http://127.0.0.1:6643/state > <output-dir>/settings-from-icon-state.json
+
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+state = json.loads(Path("<output-dir>/settings-from-icon-state.json").read_text())
+phone_state = state["phone_state"]
+assert phone_state["packageName"] == "com.apple.Preferences", phone_state
+print(phone_state)
+PY
+```
+
+Expected:
+
+- Home state reports `packageName` as `com.apple.springboard`.
+- State after tapping the Settings icon reports `packageName` as
+  `com.apple.Preferences`.
+
+## Home Icon Stress Loop
+
+Run this after the single Home icon regression passes.
+
+```bash
+for i in $(seq 1 10); do
+  curl -fsS -X POST http://127.0.0.1:6643/inputs/key \
+    -H "Content-Type: application/json" \
+    -d '{"key":1}' >/dev/null
+
+  curl -fsS http://127.0.0.1:6643/state > <output-dir>/home-state.json
+
+  python3 - <<'PY'
+import json
+import re
+from pathlib import Path
+
+state = json.loads(Path("<output-dir>/home-state.json").read_text())
+phone_state = state["phone_state"]
+assert phone_state["packageName"] == "com.apple.springboard", phone_state
+
+for line in state["a11y_tree"].splitlines():
+    if "Icon" in line and "Settings" in line:
+        match = re.search(r"\{\{([0-9.]+),\s*([0-9.]+)\},\s*\{([0-9.]+),\s*([0-9.]+)\}\}", line)
+        if match:
+            x, y, w, h = map(float, match.groups())
+            Path("<output-dir>/settings-icon-rect.txt").write_text(
+                f"{{{{{x:.1f}, {y:.1f}}}, {{{w:.1f}, {h:.1f}}}}}"
+            )
+            break
+else:
+    raise AssertionError("Settings icon not visible on Home screen")
+PY
+
+  rect="$(cat <output-dir>/settings-icon-rect.txt)"
+  curl -fsS -X POST http://127.0.0.1:6643/gestures/tap \
+    -H "Content-Type: application/json" \
+    -d "{\"rect\":\"$rect\",\"count\":1,\"longPress\":false}" >/dev/null
+
+  curl -fsS http://127.0.0.1:6643/state > <output-dir>/settings-from-icon-state.json
+
+  python3 - <<'PY'
+import json
+from pathlib import Path
+
+state = json.loads(Path("<output-dir>/settings-from-icon-state.json").read_text())
+phone_state = state["phone_state"]
+assert phone_state["packageName"] == "com.apple.Preferences", phone_state
+PY
+
+  echo "ok $i"
+done
+```
+
+Expected: all 10 iterations print `ok <n>` and the portal server remains reachable.
+
 ## Home State Stress Loop
 
 Run this after the single Home regression passes.
