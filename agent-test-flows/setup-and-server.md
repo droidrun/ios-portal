@@ -39,7 +39,7 @@ Start the portal:
 Forward the port from another terminal:
 
 ```bash
-iproxy -u <device-udid> 6643 6643
+iproxy -u <device-udid> -s 127.0.0.1 6643:6643
 ```
 
 Check that the server answers:

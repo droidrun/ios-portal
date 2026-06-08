@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import XCTest
 
 enum PortalHardwareKey: Int {
@@ -101,14 +102,106 @@ struct FocusedElement: Codable {
 }
 
 final class DroidrunPortalTools: XCTestCase {
+    private let springboardBundleIdentifier = "com.apple.springboard"
+    private let stateWindowTimeout: TimeInterval = 2
+    private let knownForegroundBundleIdentifiers = [
+        "ai.droidrun.droidrun-ios-portal",
+        "com.apple.Bridge",
+        "com.apple.DocumentsApp",
+        "com.apple.Fitness",
+        "com.apple.Health",
+        "com.apple.Maps",
+        "com.apple.MobileAddressBook",
+        "com.apple.MobileSMS",
+        "com.apple.Passbook",
+        "com.apple.Passwords",
+        "com.apple.Preferences",
+        "com.apple.PreviewShell",
+        "com.apple.mobilecal",
+        "com.apple.mobilesafari",
+        "com.apple.mobileslideshow",
+        "com.apple.news",
+        "com.apple.reminders",
+        "com.apple.shortcuts",
+        "com.apple.webapp",
+    ]
+
     var app: XCUIApplication?
     var bundleIdentifier: String?
+    private var lastHomePressAt: Date?
+    private var unknownForegroundAfterSpringboardTap = false
+    private var lastKnownScreenBounds: CGRect?
 
     static let shared = DroidrunPortalTools()
 
+    private func setSpringboardApp() {
+        self.bundleIdentifier = springboardBundleIdentifier
+        self.app = XCUIApplication(bundleIdentifier: springboardBundleIdentifier)
+        self.unknownForegroundAfterSpringboardTap = false
+    }
+
+    @MainActor
+    private func setTrackedApp(bundleIdentifier: String, app: XCUIApplication) {
+        self.bundleIdentifier = bundleIdentifier
+        self.app = app
+        self.unknownForegroundAfterSpringboardTap = false
+        if bundleIdentifier != springboardBundleIdentifier {
+            self.lastHomePressAt = nil
+        }
+    }
+
+    @MainActor
+    private func markUnknownForegroundKeepingSpringboardAnchor() {
+        if !unknownForegroundAfterSpringboardTap {
+            print("Foreground app is outside known bundle list; preserving SpringBoard coordinate anchor")
+        }
+        self.bundleIdentifier = springboardBundleIdentifier
+        self.app = XCUIApplication(bundleIdentifier: springboardBundleIdentifier)
+        self.unknownForegroundAfterSpringboardTap = true
+        self.lastHomePressAt = nil
+    }
+
+    @MainActor
+    private func shouldRefreshSpringboardState() -> Bool {
+        guard let lastHomePressAt else {
+            return true
+        }
+        return Date().timeIntervalSince(lastHomePressAt) > 1.0
+    }
+
+    @MainActor
+    private func refreshForegroundAppFromKnownBundles(timeout: TimeInterval) {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        repeat {
+            for knownBundleIdentifier in knownForegroundBundleIdentifiers {
+                let candidate = XCUIApplication(bundleIdentifier: knownBundleIdentifier)
+                if candidate.state == .runningForeground {
+                    if bundleIdentifier != knownBundleIdentifier {
+                        print("Foreground app refreshed to \(knownBundleIdentifier)")
+                    }
+                    setTrackedApp(bundleIdentifier: knownBundleIdentifier, app: candidate)
+                    return
+                }
+            }
+
+            if timeout <= 0 || Date() >= deadline {
+                break
+            }
+
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+        } while true
+
+        let springboardIsForeground = XCUIApplication(bundleIdentifier: springboardBundleIdentifier).state == .runningForeground
+        if springboardIsForeground {
+            setSpringboardApp()
+        } else {
+            markUnknownForegroundKeepingSpringboardAnchor()
+        }
+    }
+
     func reset() {
-        self.bundleIdentifier = "com.apple.springboard"
-        self.app = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        setSpringboardApp()
         self.app?.activate()
         print("reset to homescreen")
     }
@@ -122,6 +215,9 @@ final class DroidrunPortalTools: XCTestCase {
 
     @MainActor
     private func currentPackageName() -> String {
+        if unknownForegroundAfterSpringboardTap {
+            return ""
+        }
         if bundleIdentifier == "com.apple.springboard" {
             return "com.apple.springboard"
         }
@@ -130,6 +226,9 @@ final class DroidrunPortalTools: XCTestCase {
 
     @MainActor
     private func currentAppName() -> String {
+        if unknownForegroundAfterSpringboardTap {
+            return "Unknown"
+        }
         guard let app else {
             return ""
         }
@@ -158,41 +257,84 @@ final class DroidrunPortalTools: XCTestCase {
         return ""
     }
 
-    private func fallbackScreenBounds() -> CGRect {
-        CGRect(x: 0, y: 0, width: 430, height: 932)
+    @MainActor
+    private static func defaultScreenBounds() -> CGRect {
+        let screen = UIScreen.main.bounds
+        guard screen.width > 0, screen.height > 0 else {
+            return CGRect(x: 0, y: 0, width: 430, height: 932)
+        }
+        return screen
+    }
+
+    @MainActor
+    func currentScreenBounds() -> CGRect {
+        if let lastKnownScreenBounds,
+           lastKnownScreenBounds.width > 0,
+           lastKnownScreenBounds.height > 0 {
+            return lastKnownScreenBounds
+        }
+        return Self.defaultScreenBounds()
+    }
+
+    @MainActor
+    private func rememberScreenBounds(_ screen: CGRect) -> CGRect {
+        guard screen.width > 0, screen.height > 0 else {
+            return currentScreenBounds()
+        }
+        lastKnownScreenBounds = screen
+        return screen
+    }
+
+    private func springboardTreeShowsForegroundAppCard(_ a11yTree: String) -> Bool {
+        a11yTree.contains("identifier: 'AppSwitcherContentView'")
+            || a11yTree.contains("identifier: 'card:")
+    }
+
+    @MainActor
+    private func unknownStateFullResponse() -> StateFullResponse {
+        let screen = currentScreenBounds()
+        return StateFullResponse(
+            a11y_tree: "",
+            phone_state: StateFullPhoneState(
+                currentApp: "Unknown",
+                packageName: "",
+                keyboardVisible: false,
+                isEditable: false,
+                focusedElement: nil
+            ),
+            device_context: DeviceContext(
+                screen_bounds: ScreenBounds(width: screen.width, height: screen.height)
+            )
+        )
     }
 
     // MARK: - State
 
     @MainActor
     func fetchStateFull() throws -> StateFullResponse {
+        if bundleIdentifier == springboardBundleIdentifier, shouldRefreshSpringboardState() {
+            refreshForegroundAppFromKnownBundles(timeout: 0.5)
+        }
+
+        if unknownForegroundAfterSpringboardTap {
+            return unknownStateFullResponse()
+        }
+
         guard let app else {
-            let screen = fallbackScreenBounds()
-            return StateFullResponse(
-                a11y_tree: "",
-                phone_state: StateFullPhoneState(
-                    currentApp: "Unknown",
-                    packageName: "",
-                    keyboardVisible: false,
-                    isEditable: false,
-                    focusedElement: nil
-                ),
-                device_context: DeviceContext(
-                    screen_bounds: ScreenBounds(width: screen.width, height: screen.height)
-                )
-            )
+            return unknownStateFullResponse()
         }
 
         let a11yTree: String
         do {
             a11yTree = try fetchAccessibilityTree()
         } catch {
-            let screen = fallbackScreenBounds()
+            let screen = currentScreenBounds()
+            let packageName = currentPackageName()
             return StateFullResponse(
                 a11y_tree: "",
                 phone_state: StateFullPhoneState(
-                    currentApp: currentAppName(),
-                    packageName: currentPackageName(),
+                    currentApp: packageName == springboardBundleIdentifier ? "Home Screen" : packageName,
+                    packageName: packageName,
                     keyboardVisible: false,
                     isEditable: false,
                     focusedElement: nil
@@ -203,15 +345,20 @@ final class DroidrunPortalTools: XCTestCase {
             )
         }
 
+        if bundleIdentifier == springboardBundleIdentifier, springboardTreeShowsForegroundAppCard(a11yTree) {
+            markUnknownForegroundKeepingSpringboardAnchor()
+            return unknownStateFullResponse()
+        }
+
         // Guard window frame query — this is the main source of
         // kAXErrorServerNotFound failures that accumulate and eventually
         // cause xcodebuild to kill the test runner.
         let window = app.windows.element(boundBy: 0)
-        var frame = fallbackScreenBounds()
+        var frame = currentScreenBounds()
         if window.waitForExistence(timeout: 3) {
             let wf = window.frame
             if wf.width > 0 && wf.height > 0 {
-                frame = wf
+                frame = rememberScreenBounds(wf)
             }
         }
 
@@ -294,8 +441,7 @@ final class DroidrunPortalTools: XCTestCase {
             app.launch()
         }
 
-        self.bundleIdentifier = bundleIdentifier
-        self.app = app
+        setTrackedApp(bundleIdentifier: bundleIdentifier, app: app)
     }
 
     // MARK: - Accessibility
@@ -306,16 +452,14 @@ final class DroidrunPortalTools: XCTestCase {
             throw Error.noAppFound
         }
 
-        // Guard: if the app window doesn't appear within 10s the
-        // accessibility server is likely unreachable (app transitioning,
-        // loading, etc.).  waitForExistence does NOT record an XCTest
-        // failure, so bailing here avoids the kAXErrorServerNotFound
-        // accumulation that eventually kills the test runner.
+        // Keep this shorter than clients' /state HTTP timeout. A stale
+        // foreground app reference can otherwise leave a state request running
+        // while the agent sends the next command, which destabilizes XCTest.
         let window = app.windows.element(boundBy: 0)
-        if !window.waitForExistence(timeout: 10) {
+        if !window.waitForExistence(timeout: stateWindowTimeout) {
             throw Error.invalidTool(
                 name: "fetchAccessibilityTree",
-                message: "App window not available after 10s — the app may be loading or transitioning."
+                message: "App window not available after \(stateWindowTimeout)s — the app may be loading or transitioning."
             )
         }
 
@@ -330,6 +474,7 @@ final class DroidrunPortalTools: XCTestCase {
         guard let app else {
             throw Error.noAppFound
         }
+        let shouldRefreshAfterTap = bundleIdentifier == springboardBundleIdentifier
         let coordinate = NSCoder.cgRect(for: coordinateString)
         let midPoint = CGPoint(x: coordinate.midX, y: coordinate.midY)
         let startCoordinate = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
@@ -342,6 +487,10 @@ final class DroidrunPortalTools: XCTestCase {
             } else {
                 targetCoordinate.tap()
             }
+        }
+        if shouldRefreshAfterTap {
+            lastHomePressAt = nil
+            refreshForegroundAppFromKnownBundles(timeout: 3)
         }
     }
 
@@ -477,6 +626,8 @@ final class DroidrunPortalTools: XCTestCase {
         if portalKey == .home {
             print("Press Key \(button)")
             XCUIDevice.shared.press(button)
+            setSpringboardApp()
+            lastHomePressAt = Date()
             return
         }
 
