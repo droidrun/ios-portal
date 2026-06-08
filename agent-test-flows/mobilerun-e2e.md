@@ -53,16 +53,42 @@ Expected:
 - Settings launches and reports `packageName` as `com.apple.Preferences`.
 - Safe typing succeeds when a text field is focused.
 
-## Gemini Agent
+## LLM Agent
 
-Load the Gemini key without printing it:
+Use any configured `mobilerun` LLM provider. Common provider examples:
+
+| Provider | Example env var | Example `--provider` | Example `--model` |
+| --- | --- | --- | --- |
+| Gemini API key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `GoogleGenAI` | `gemini-3.1-flash-lite` |
+| Gemini OAuth | cached OAuth credentials | `gemini_oauth_code_assist` | `gemini-3.1-flash-lite` |
+| OpenAI / Codex | `OPENAI_API_KEY` or cached OAuth credentials | `OpenAIResponses` or `openai_oauth` | `gpt-5.5` |
+| Anthropic Claude | `ANTHROPIC_API_KEY` or cached OAuth credentials | `Anthropic` or `anthropic_oauth` | `claude-sonnet-4-6` |
+| OpenAI-compatible | provider-specific key | `OpenAILike` | provider-specific model |
+
+Load provider credentials without printing secrets. For example:
 
 ```bash
-export GEMINI_API_KEY="$(tr -d '\n' < "<gemini-key-file>")"
-export GOOGLE_API_KEY="$GEMINI_API_KEY"
+export GOOGLE_API_KEY="$(tr -d '\n' < "<google-key-file>")"
+export GEMINI_API_KEY="$GOOGLE_API_KEY"
+
+export OPENAI_API_KEY="$(tr -d '\n' < "<openai-key-file>")"
+export ANTHROPIC_API_KEY="$(tr -d '\n' < "<anthropic-key-file>")"
 ```
 
-Run each task:
+Run each task with the provider/model under test:
+
+```bash
+uv run python -m mobilerun run "<task>" \
+  --ios \
+  --device http://127.0.0.1:6643 \
+  --provider <provider> \
+  --model <model> \
+  --steps 7 \
+  --no-stream \
+  --save-trajectory none
+```
+
+Example Gemini run:
 
 ```bash
 uv run python -m mobilerun run "<task>" \
@@ -83,7 +109,7 @@ Recommended tasks:
 
 Expected:
 
-- At least two of the three tasks complete successfully.
-- If a task fails, classify it as Portal/XCTest, Gemini/auth/network/model, or
+- At least two of the three tasks complete successfully for the provider under test.
+- If a task fails, classify it as Portal/XCTest, provider/auth/network/model, or
   local `mobilerun` regression.
 - Portal remains reachable after the run.
