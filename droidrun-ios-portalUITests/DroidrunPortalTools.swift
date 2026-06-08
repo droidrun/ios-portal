@@ -128,27 +128,34 @@ final class DroidrunPortalTools: XCTestCase {
     var app: XCUIApplication?
     var bundleIdentifier: String?
     private var lastHomePressAt: Date?
+    private var unknownForegroundAfterSpringboardTap = false
 
     static let shared = DroidrunPortalTools()
 
     private func setSpringboardApp() {
         self.bundleIdentifier = springboardBundleIdentifier
         self.app = XCUIApplication(bundleIdentifier: springboardBundleIdentifier)
+        self.unknownForegroundAfterSpringboardTap = false
     }
 
     @MainActor
     private func setTrackedApp(bundleIdentifier: String, app: XCUIApplication) {
         self.bundleIdentifier = bundleIdentifier
         self.app = app
+        self.unknownForegroundAfterSpringboardTap = false
         if bundleIdentifier != springboardBundleIdentifier {
             self.lastHomePressAt = nil
         }
     }
 
     @MainActor
-    private func clearTrackedApp() {
-        self.bundleIdentifier = nil
-        self.app = nil
+    private func markUnknownForegroundKeepingSpringboardAnchor() {
+        if !unknownForegroundAfterSpringboardTap {
+            print("Foreground app is outside known bundle list; preserving SpringBoard coordinate anchor")
+        }
+        self.bundleIdentifier = springboardBundleIdentifier
+        self.app = XCUIApplication(bundleIdentifier: springboardBundleIdentifier)
+        self.unknownForegroundAfterSpringboardTap = true
         self.lastHomePressAt = nil
     }
 
@@ -163,7 +170,6 @@ final class DroidrunPortalTools: XCTestCase {
     @MainActor
     private func refreshForegroundAppFromKnownBundles(timeout: TimeInterval) {
         let deadline = Date().addingTimeInterval(timeout)
-        var springboardIsForeground = false
 
         repeat {
             for knownBundleIdentifier in knownForegroundBundleIdentifiers {
@@ -177,7 +183,6 @@ final class DroidrunPortalTools: XCTestCase {
                 }
             }
 
-            springboardIsForeground = XCUIApplication(bundleIdentifier: springboardBundleIdentifier).state == .runningForeground
             if timeout <= 0 || Date() >= deadline {
                 break
             }
@@ -185,10 +190,11 @@ final class DroidrunPortalTools: XCTestCase {
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
         } while true
 
+        let springboardIsForeground = XCUIApplication(bundleIdentifier: springboardBundleIdentifier).state == .runningForeground
         if springboardIsForeground {
             setSpringboardApp()
         } else {
-            clearTrackedApp()
+            markUnknownForegroundKeepingSpringboardAnchor()
         }
     }
 
@@ -207,6 +213,9 @@ final class DroidrunPortalTools: XCTestCase {
 
     @MainActor
     private func currentPackageName() -> String {
+        if unknownForegroundAfterSpringboardTap {
+            return ""
+        }
         if bundleIdentifier == "com.apple.springboard" {
             return "com.apple.springboard"
         }
@@ -215,6 +224,9 @@ final class DroidrunPortalTools: XCTestCase {
 
     @MainActor
     private func currentAppName() -> String {
+        if unknownForegroundAfterSpringboardTap {
+            return "Unknown"
+        }
         guard let app else {
             return ""
         }
@@ -247,6 +259,28 @@ final class DroidrunPortalTools: XCTestCase {
         CGRect(x: 0, y: 0, width: 430, height: 932)
     }
 
+    private func springboardTreeShowsForegroundAppCard(_ a11yTree: String) -> Bool {
+        a11yTree.contains("identifier: 'AppSwitcherContentView'")
+            || a11yTree.contains("identifier: 'card:")
+    }
+
+    private func unknownStateFullResponse() -> StateFullResponse {
+        let screen = fallbackScreenBounds()
+        return StateFullResponse(
+            a11y_tree: "",
+            phone_state: StateFullPhoneState(
+                currentApp: "Unknown",
+                packageName: "",
+                keyboardVisible: false,
+                isEditable: false,
+                focusedElement: nil
+            ),
+            device_context: DeviceContext(
+                screen_bounds: ScreenBounds(width: screen.width, height: screen.height)
+            )
+        )
+    }
+
     // MARK: - State
 
     @MainActor
@@ -255,21 +289,12 @@ final class DroidrunPortalTools: XCTestCase {
             refreshForegroundAppFromKnownBundles(timeout: 0.5)
         }
 
+        if unknownForegroundAfterSpringboardTap {
+            return unknownStateFullResponse()
+        }
+
         guard let app else {
-            let screen = fallbackScreenBounds()
-            return StateFullResponse(
-                a11y_tree: "",
-                phone_state: StateFullPhoneState(
-                    currentApp: "Unknown",
-                    packageName: "",
-                    keyboardVisible: false,
-                    isEditable: false,
-                    focusedElement: nil
-                ),
-                device_context: DeviceContext(
-                    screen_bounds: ScreenBounds(width: screen.width, height: screen.height)
-                )
-            )
+            return unknownStateFullResponse()
         }
 
         let a11yTree: String
@@ -291,6 +316,11 @@ final class DroidrunPortalTools: XCTestCase {
                     screen_bounds: ScreenBounds(width: screen.width, height: screen.height)
                 )
             )
+        }
+
+        if bundleIdentifier == springboardBundleIdentifier, springboardTreeShowsForegroundAppCard(a11yTree) {
+            markUnknownForegroundKeepingSpringboardAnchor()
+            return unknownStateFullResponse()
         }
 
         // Guard window frame query — this is the main source of
