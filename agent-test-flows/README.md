@@ -7,7 +7,8 @@ Small Markdown runbooks for checking the iOS Portal HTTP API on a simulator or p
 1. Start the portal with `setup-and-server.md`.
 2. Check state and screenshots with `state-and-screenshot.md`.
 3. Check safe actions and hardware keys with `actions-and-keys.md`.
-4. Report pass, fail, or skip for each command you ran.
+4. Check `mobilerun` integration with `mobilerun-e2e.md`.
+5. Report pass, fail, or skip for each command you ran.
 
 ## Target Inputs
 
@@ -37,6 +38,8 @@ Do not hardcode local simulator names, device IDs, hostnames, or personal paths 
 | Type text | `POST /inputs/type` |
 | Hardware key | `POST /inputs/key` |
 | Back | `POST /gestures/back` |
+| Mobilerun UI | `python -m mobilerun device ui --ios` |
+| Mobilerun agent | `python -m mobilerun run --ios` |
 
 ## Safety
 
