@@ -227,11 +227,73 @@ Expected:
 - State after tapping the Settings icon reports `packageName` as
   `com.apple.Preferences`.
 
+## Portal App Bundle Regression
+
+This verifies that the portal app itself is recognized by its tracked bundle id
+when it is opened from the Home screen. The project bundle id is
+`ai.droidrun.droidrun-ios-portal`.
+
+```bash
+curl -fsS -X POST http://127.0.0.1:6643/inputs/key \
+  -H "Content-Type: application/json" \
+  -d '{"key":1}'
+
+curl -fsS http://127.0.0.1:6643/state > <output-dir>/home-state.json
+
+python3 - <<'PY'
+import json
+import re
+from pathlib import Path
+
+state = json.loads(Path("<output-dir>/home-state.json").read_text())
+phone_state = state["phone_state"]
+assert phone_state["packageName"] == "com.apple.springboard", phone_state
+
+for line in state["a11y_tree"].splitlines():
+    if "Icon" in line and ("Droidrun" in line or "Portal" in line):
+        match = re.search(r"\{\{([0-9.]+),\s*([0-9.]+)\},\s*\{([0-9.]+),\s*([0-9.]+)\}\}", line)
+        if match:
+            x, y, w, h = map(float, match.groups())
+            Path("<output-dir>/portal-icon-rect.txt").write_text(
+                f"{{{{{x:.1f}, {y:.1f}}}, {{{w:.1f}, {h:.1f}}}}}"
+            )
+            break
+else:
+    Path("<output-dir>/portal-icon-rect.txt").write_text("")
+    print("Portal app icon not visible; skipping live icon tap check")
+PY
+
+rect="$(cat <output-dir>/portal-icon-rect.txt)"
+if [ -n "$rect" ]; then
+  curl -fsS -X POST http://127.0.0.1:6643/gestures/tap \
+    -H "Content-Type: application/json" \
+    -d "{\"rect\":\"$rect\",\"count\":1,\"longPress\":false}"
+
+  curl -fsS http://127.0.0.1:6643/state > <output-dir>/portal-app-state.json
+
+  python3 - <<'PY'
+import json
+from pathlib import Path
+
+state = json.loads(Path("<output-dir>/portal-app-state.json").read_text())
+phone_state = state["phone_state"]
+assert phone_state["packageName"] == "ai.droidrun.droidrun-ios-portal", phone_state
+PY
+fi
+```
+
+Expected:
+
+- If the portal icon is visible, state after tapping it reports `packageName` as
+  `ai.droidrun.droidrun-ios-portal`.
+- If the portal icon is not visible, record the skip reason.
+
 ## Unknown Home Icon Regression
 
 This verifies that tapping a Home-screen icon outside the portal's known bundle
 list does not leave the portal pinned to Home Screen and does not break later
-coordinate gestures. Clock is the default target because it is visible on the
+coordinate gestures. The degraded state must preserve the device's real screen
+bounds from Home state. Clock is the default target because it is visible on the
 test device and is intentionally not in the known bundle list.
 
 ```bash
@@ -274,10 +336,15 @@ python3 - <<'PY'
 import json
 from pathlib import Path
 
+home = json.loads(Path("<output-dir>/home-state.json").read_text())
 state = json.loads(Path("<output-dir>/unknown-app-state.json").read_text())
 phone_state = state["phone_state"]
 assert phone_state["currentApp"] == "Unknown", phone_state
 assert phone_state["packageName"] == "", phone_state
+assert state["device_context"]["screen_bounds"] == home["device_context"]["screen_bounds"], (
+    state["device_context"],
+    home["device_context"],
+)
 PY
 
 curl -fsS -X POST http://127.0.0.1:6643/gestures/tap \
@@ -298,6 +365,8 @@ Expected:
 - State after tapping Clock reports `currentApp` as `Unknown`.
 - State after tapping Clock does not report `packageName` as
   `com.apple.springboard`.
+- State after tapping Clock preserves the same `device_context.screen_bounds`
+  reported from Home state.
 - A follow-up coordinate tap returns `200`, not `noAppFound`.
 - Home and explicit Settings launch recover normal app tracking.
 

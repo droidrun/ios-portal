@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import XCTest
 
 enum PortalHardwareKey: Int {
@@ -104,7 +105,7 @@ final class DroidrunPortalTools: XCTestCase {
     private let springboardBundleIdentifier = "com.apple.springboard"
     private let stateWindowTimeout: TimeInterval = 2
     private let knownForegroundBundleIdentifiers = [
-        "ai.mobilerun.mobilerun-ios-portal",
+        "ai.droidrun.droidrun-ios-portal",
         "com.apple.Bridge",
         "com.apple.DocumentsApp",
         "com.apple.Fitness",
@@ -129,6 +130,7 @@ final class DroidrunPortalTools: XCTestCase {
     var bundleIdentifier: String?
     private var lastHomePressAt: Date?
     private var unknownForegroundAfterSpringboardTap = false
+    private var lastKnownScreenBounds: CGRect?
 
     static let shared = DroidrunPortalTools()
 
@@ -255,8 +257,32 @@ final class DroidrunPortalTools: XCTestCase {
         return ""
     }
 
-    private func fallbackScreenBounds() -> CGRect {
-        CGRect(x: 0, y: 0, width: 430, height: 932)
+    @MainActor
+    private static func defaultScreenBounds() -> CGRect {
+        let screen = UIScreen.main.bounds
+        guard screen.width > 0, screen.height > 0 else {
+            return CGRect(x: 0, y: 0, width: 430, height: 932)
+        }
+        return screen
+    }
+
+    @MainActor
+    func currentScreenBounds() -> CGRect {
+        if let lastKnownScreenBounds,
+           lastKnownScreenBounds.width > 0,
+           lastKnownScreenBounds.height > 0 {
+            return lastKnownScreenBounds
+        }
+        return Self.defaultScreenBounds()
+    }
+
+    @MainActor
+    private func rememberScreenBounds(_ screen: CGRect) -> CGRect {
+        guard screen.width > 0, screen.height > 0 else {
+            return currentScreenBounds()
+        }
+        lastKnownScreenBounds = screen
+        return screen
     }
 
     private func springboardTreeShowsForegroundAppCard(_ a11yTree: String) -> Bool {
@@ -264,8 +290,9 @@ final class DroidrunPortalTools: XCTestCase {
             || a11yTree.contains("identifier: 'card:")
     }
 
+    @MainActor
     private func unknownStateFullResponse() -> StateFullResponse {
-        let screen = fallbackScreenBounds()
+        let screen = currentScreenBounds()
         return StateFullResponse(
             a11y_tree: "",
             phone_state: StateFullPhoneState(
@@ -301,7 +328,7 @@ final class DroidrunPortalTools: XCTestCase {
         do {
             a11yTree = try fetchAccessibilityTree()
         } catch {
-            let screen = fallbackScreenBounds()
+            let screen = currentScreenBounds()
             let packageName = currentPackageName()
             return StateFullResponse(
                 a11y_tree: "",
@@ -327,11 +354,11 @@ final class DroidrunPortalTools: XCTestCase {
         // kAXErrorServerNotFound failures that accumulate and eventually
         // cause xcodebuild to kill the test runner.
         let window = app.windows.element(boundBy: 0)
-        var frame = fallbackScreenBounds()
+        var frame = currentScreenBounds()
         if window.waitForExistence(timeout: 3) {
             let wf = window.frame
             if wf.width > 0 && wf.height > 0 {
-                frame = wf
+                frame = rememberScreenBounds(wf)
             }
         }
 

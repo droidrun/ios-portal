@@ -100,6 +100,7 @@ struct DroidrunPortalHandler {
             // The droidrun agent can retry and the test runner avoids
             // accumulating unhandled errors that cause xcodebuild to kill it.
             print("[Portal] /state error (returning fallback): \(error)")
+            let screen = await DroidrunPortalTools.shared.currentScreenBounds()
             return StateFullResponse(
                 a11y_tree: "",
                 phone_state: StateFullPhoneState(
@@ -110,7 +111,7 @@ struct DroidrunPortalHandler {
                     focusedElement: nil
                 ),
                 device_context: DeviceContext(
-                    screen_bounds: ScreenBounds(width: 430, height: 932)
+                    screen_bounds: ScreenBounds(width: screen.width, height: screen.height)
                 )
             )
         }
