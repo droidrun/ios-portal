@@ -101,14 +101,21 @@ struct FocusedElement: Codable {
 }
 
 final class DroidrunPortalTools: XCTestCase {
+    private let springboardBundleIdentifier = "com.apple.springboard"
+    private let stateWindowTimeout: TimeInterval = 2
+
     var app: XCUIApplication?
     var bundleIdentifier: String?
 
     static let shared = DroidrunPortalTools()
 
+    private func setSpringboardApp() {
+        self.bundleIdentifier = springboardBundleIdentifier
+        self.app = XCUIApplication(bundleIdentifier: springboardBundleIdentifier)
+    }
+
     func reset() {
-        self.bundleIdentifier = "com.apple.springboard"
-        self.app = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        setSpringboardApp()
         self.app?.activate()
         print("reset to homescreen")
     }
@@ -188,11 +195,12 @@ final class DroidrunPortalTools: XCTestCase {
             a11yTree = try fetchAccessibilityTree()
         } catch {
             let screen = fallbackScreenBounds()
+            let packageName = currentPackageName()
             return StateFullResponse(
                 a11y_tree: "",
                 phone_state: StateFullPhoneState(
-                    currentApp: currentAppName(),
-                    packageName: currentPackageName(),
+                    currentApp: packageName == springboardBundleIdentifier ? "Home Screen" : packageName,
+                    packageName: packageName,
                     keyboardVisible: false,
                     isEditable: false,
                     focusedElement: nil
@@ -306,16 +314,14 @@ final class DroidrunPortalTools: XCTestCase {
             throw Error.noAppFound
         }
 
-        // Guard: if the app window doesn't appear within 10s the
-        // accessibility server is likely unreachable (app transitioning,
-        // loading, etc.).  waitForExistence does NOT record an XCTest
-        // failure, so bailing here avoids the kAXErrorServerNotFound
-        // accumulation that eventually kills the test runner.
+        // Keep this shorter than clients' /state HTTP timeout. A stale
+        // foreground app reference can otherwise leave a state request running
+        // while the agent sends the next command, which destabilizes XCTest.
         let window = app.windows.element(boundBy: 0)
-        if !window.waitForExistence(timeout: 10) {
+        if !window.waitForExistence(timeout: stateWindowTimeout) {
             throw Error.invalidTool(
                 name: "fetchAccessibilityTree",
-                message: "App window not available after 10s — the app may be loading or transitioning."
+                message: "App window not available after \(stateWindowTimeout)s — the app may be loading or transitioning."
             )
         }
 
@@ -477,6 +483,7 @@ final class DroidrunPortalTools: XCTestCase {
         if portalKey == .home {
             print("Press Key \(button)")
             XCUIDevice.shared.press(button)
+            setSpringboardApp()
             return
         }
 
