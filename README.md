@@ -57,16 +57,47 @@ Find the device UDID:
 xcrun xctrace list devices
 ```
 
-Start the Portal UI test:
+Start the Portal UI test with either the script or Xcode.
+
+#### Option A: Script
 
 ```bash
 ./device.sh <device-udid>
 ```
 
-Keep that terminal running. In another terminal, forward the device port:
+#### Option B: Xcode UI
+
+Open the project:
+
+```bash
+open droidrun-ios-portal.xcodeproj
+```
+
+In Xcode:
+
+1. Sign in with your Apple Developer account if needed.
+2. Select your physical iPhone or iPad as the run destination.
+3. Check **Signing & Capabilities** for the app and UI-test targets.
+4. Run **Product > Test**.
+
+For either option, keep the Xcode test session running. The Portal is ready
+when the log shows:
+
+```text
+Portal server listening on port 6643
+```
+
+In another terminal, forward the device port. The explicit device form is
+recommended:
 
 ```bash
 iproxy -u <device-udid> -s 127.0.0.1 6643:6643
+```
+
+When only one iPhone is connected, the short form also works:
+
+```bash
+iproxy 6643 6643
 ```
 
 If the Xcode log says `Portal server listening on port 6644`, forward local
