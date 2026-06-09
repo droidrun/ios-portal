@@ -363,7 +363,7 @@ After the Portal health checks succeed, install Mobilerun in Python
 `>=3.11,<3.14` and point it at the local Portal URL:
 
 ```bash
-python3.13 -m pip install -U mobilerun
+uv pip install mobilerun
 
 mobilerun device ui --ios --device http://127.0.0.1:6643
 mobilerun device screenshot --ios --device http://127.0.0.1:6643
@@ -374,14 +374,11 @@ mobilerun device start com.apple.Preferences --ios --device http://127.0.0.1:664
 Run an LLM-backed task with any configured Mobilerun provider:
 
 ```bash
-mobilerun run "Open Settings and report the current foreground app." \
+mobilerun run "Open Settings and tell me iOS version that is currently installed" \
   --ios \
   --device http://127.0.0.1:6643 \
   --provider <provider> \
-  --model <model> \
-  --steps 7 \
-  --no-stream \
-  --save-trajectory none
+  --model <model>
 ```
 
 Example Gemini API-key run:
@@ -390,28 +387,22 @@ Example Gemini API-key run:
 export GOOGLE_API_KEY="$(tr -d '\n' < "<google-key-file>")"
 export GEMINI_API_KEY="$GOOGLE_API_KEY"
 
-mobilerun run "Open Settings and report the current foreground app." \
+mobilerun run "Open Settings and tell me iOS version that is currently installed" \
   --ios \
   --device http://127.0.0.1:6643 \
   --provider GoogleGenAI \
-  --model gemini-3.1-flash-lite \
-  --steps 7 \
-  --no-stream \
-  --save-trajectory none
+  --model gemini-3.1-flash-lite
 ```
 
 For screenshot-backed reasoning, enable vision:
 
 ```bash
-mobilerun run "Open Settings and report the current foreground app." \
+mobilerun run "Open Settings and tell me iOS version that is currently installed" \
   --ios \
   --device http://127.0.0.1:6643 \
   --provider GoogleGenAI \
   --model gemini-3.1-flash-lite \
-  --steps 7 \
-  --vision \
-  --no-stream \
-  --save-trajectory none
+  --vision
 ```
 
 ## Technical Details
