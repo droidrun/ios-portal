@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swhitty/FlyingFox.git",
       "state" : {
-        "revision" : "3ad076e081749cef043e25ac01719a503b772113",
-        "version" : "0.22.0"
+        "revision" : "f7829d4aca8cbfecb410a1cce872b1b045224aa1",
+        "version" : "0.16.0"
       }
     },
     {
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax",
       "state" : {
-        "revision" : "0687f71944021d616d34d922343dcef086855920",
-        "version" : "600.0.1"
+        "revision" : "74203046135342e4a4a627476dd6caf8b28fe11b",
+        "version" : "509.0.0"
       }
     }
   ],

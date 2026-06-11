@@ -13,11 +13,9 @@ enum PortalHardwareKey: Int {
     case home = 1
     case volumeUp = 2
     case volumeDown = 3
-    case action = 4
-    case camera = 5
 
     static let supportedKeysDescription =
-        "1 (home), 2 (volume up), 3 (volume down), 4 (action; iOS 17+ with supported hardware), 5 (camera; iOS 18+ with supported hardware)"
+        "1 (home), 2 (volume up), 3 (volume down)"
 
     var displayName: String {
         switch self {
@@ -27,10 +25,6 @@ enum PortalHardwareKey: Int {
             return "volume up"
         case .volumeDown:
             return "volume down"
-        case .action:
-            return "action"
-        case .camera:
-            return "camera"
         }
     }
 
@@ -42,10 +36,6 @@ enum PortalHardwareKey: Int {
             return "volume up button on a physical device"
         case .volumeDown:
             return "volume down button on a physical device"
-        case .action:
-            return "action button on iOS 17 or newer with supported hardware"
-        case .camera:
-            return "camera button on iOS 18 or newer with supported hardware"
         }
     }
 
@@ -62,16 +52,6 @@ enum PortalHardwareKey: Int {
         case .volumeUp, .volumeDown:
             return nil
         #endif
-        case .action:
-            if #available(iOS 17.0, *) {
-                return .action
-            }
-            return nil
-        case .camera:
-            if #available(iOS 18.0, *) {
-                return .camera
-            }
-            return nil
         }
     }
 }
@@ -631,11 +611,13 @@ final class DroidrunPortalTools: XCTestCase {
             return
         }
 
-        guard XCUIDevice.shared.hasHardwareButton(button) else {
-            throw Error.unsupportedKey(
-                key: portalKey.rawValue,
-                message: "This device does not have a \(portalKey.displayName) hardware button. Supported keys: \(PortalHardwareKey.supportedKeysDescription)."
-            )
+        if #available(iOS 16.0, *) {
+            guard XCUIDevice.shared.hasHardwareButton(button) else {
+                throw Error.unsupportedKey(
+                    key: portalKey.rawValue,
+                    message: "This device does not have a \(portalKey.displayName) hardware button. Supported keys: \(PortalHardwareKey.supportedKeysDescription)."
+                )
+            }
         }
 
         print("Press Key \(button)")
