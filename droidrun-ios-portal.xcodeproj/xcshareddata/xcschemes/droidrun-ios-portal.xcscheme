@@ -21,15 +21,6 @@
                ReferencedContainer = "container:droidrun-ios-portal.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <AutocreatedTestPlanReference>
-            </AutocreatedTestPlanReference>
-         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -45,48 +36,6 @@
       </TestPlans>
       <Testables>
          <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "257BF6D32DEF0D2A00E06EE1"
-               BuildableName = "droidrun-ios-portalTests.xctest"
-               BlueprintName = "droidrun-ios-portalTests"
-               ReferencedContainer = "container:droidrun-ios-portal.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "257BF6DD2DEF0D2A00E06EE1"
-               BuildableName = "Droidrun.xctest"
-               BlueprintName = "Droidrun Server"
-               ReferencedContainer = "container:droidrun-ios-portal.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "257BF6DD2DEF0D2A00E06EE1"
-               BuildableName = "Droidrun.xctest"
-               BlueprintName = "Droidrun Server"
-               ReferencedContainer = "container:droidrun-ios-portal.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "257BF6DD2DEF0D2A00E06EE1"
-               BuildableName = "Droidrun.xctest"
-               BlueprintName = "Droidrun Server"
-               ReferencedContainer = "container:droidrun-ios-portal.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
@@ -97,6 +46,15 @@
             </BuildableReference>
          </TestableReference>
       </Testables>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "257BF6C62DEF0D2800E06EE1"
+            BuildableName = "Droidrun Portal.app"
+            BlueprintName = "Droidrun Portal"
+            ReferencedContainer = "container:droidrun-ios-portal.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

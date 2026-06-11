@@ -42,7 +42,8 @@ first, then point Mobilerun or any HTTP client at the local Portal URL.
 ### Prerequisites
 
 - Xcode installed and opened at least once.
-- An iOS simulator, or a connected and unlocked physical iPhone/iPad.
+- An iOS simulator, or a connected and unlocked physical iPhone/iPad, running
+  iOS 15.0 or newer.
 - For physical devices, `iproxy` from `libimobiledevice`.
 
 If Xcode signing fails on a local physical device, use a local command-line or

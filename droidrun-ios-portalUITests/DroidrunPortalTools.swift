@@ -631,11 +631,13 @@ final class DroidrunPortalTools: XCTestCase {
             return
         }
 
-        guard XCUIDevice.shared.hasHardwareButton(button) else {
-            throw Error.unsupportedKey(
-                key: portalKey.rawValue,
-                message: "This device does not have a \(portalKey.displayName) hardware button. Supported keys: \(PortalHardwareKey.supportedKeysDescription)."
-            )
+        if #available(iOS 16.0, *) {
+            guard XCUIDevice.shared.hasHardwareButton(button) else {
+                throw Error.unsupportedKey(
+                    key: portalKey.rawValue,
+                    message: "This device does not have a \(portalKey.displayName) hardware button. Supported keys: \(PortalHardwareKey.supportedKeysDescription)."
+                )
+            }
         }
 
         print("Press Key \(button)")
