@@ -9,6 +9,16 @@
 [![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://docs.droidrun.ai)
 [![Twitter Follow](https://img.shields.io/twitter/follow/droid_run?style=social)](https://x.com/droid_run)
 
+> [!WARNING]
+> **⚠️ Deprecated — superseded by mobilerun-ios**
+>
+> This project is no longer maintained. It has been superseded by **[mobilerun-ios](https://github.com/droidrun/mobilerun-ios-releases)**, which replaces the iOS Portal for iOS device automation.
+>
+> - Releases: https://github.com/droidrun/mobilerun-ios-releases
+> - Setup guide: https://docs.mobilerun.ai/framework/guides/device-setup#ios-setup
+>
+> This repository is archived and kept for reference only. No further issues, pull requests, or releases will be accepted.
+
 
 A comprehensive iOS automation portal that provides HTTP API access to iOS device UI state extraction and automated interactions.
 
